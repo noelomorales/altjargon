@@ -183,7 +183,12 @@ export default function SpaceChat() {
     e.preventDefault();
     if (!input.trim()) return;
 
-    const userMsg = { role: 'user', content: input.trim(), id: `u-${Date.now()}`, timestamp: Date.now() };
+    const userMsg: Message = {
+      role: 'user',
+      content: input.trim(),
+      id: `u-${Date.now()}`,
+      timestamp: Date.now()
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
@@ -195,7 +200,12 @@ export default function SpaceChat() {
     });
 
     const data = await res.json();
-    const reply = { role: 'assistant', content: data.content, id: `a-${Date.now()}`, timestamp: Date.now() };
+    const reply: Message = {
+      role: 'assistant',
+      content: data.content,
+      id: `a-${Date.now()}`,
+      timestamp: Date.now()
+    };
     setMessages((prev) => [...prev, reply]);
     setIsLoading(false);
   };
@@ -207,7 +217,6 @@ export default function SpaceChat() {
       backgroundPosition: '0 0, 15px 15px'
     }}>
       <div ref={cursorRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transition-transform duration-300 ease-out" />
-
       <div className="flex flex-col md:flex-row justify-center items-center gap-8 p-8 z-10 relative">
         <ChatBox
           messages={messages}
