@@ -10,141 +10,44 @@ interface Message {
   id: string;
 }
 
-function ChatBox({
-  messages,
-  input,
-  setInput,
-  onSubmit,
-  isLoading,
-  isRecording,
-  toggleRecording,
-  speakText,
-  title,
-}: {
-  messages: Message[];
-  input: string;
-  setInput: (s: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  isLoading: boolean;
-  isRecording: boolean;
-  toggleRecording: () => void;
-  speakText: (text: string) => void;
-  title: string;
-}) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  return (
-    <div className="bg-black/80 border border-purple-500 rounded-lg p-4 w-full max-w-md text-purple-300 font-mono backdrop-blur-sm shadow-xl">
-      <h2 className="text-lg font-bold mb-2">{title}</h2>
-      <div className="h-96 overflow-y-auto space-y-4 mb-2">
-        {messages.slice(1).map((message) => (
-          <div key={message.id} className={`text-sm ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-            <div className={`inline-block px-3 py-2 rounded ${message.role === 'user' ? 'bg-purple-600 text-white' : 'bg-purple-900'}`}>
-              {message.content}
-            </div>
-            {message.timestamp && (
-              <div className="text-xs text-purple-400 mt-1">{new Date(message.timestamp).toLocaleTimeString()}</div>
-            )}
-            {message.role === 'assistant' && (
-              <button onClick={() => speakText(message.content)} className="mt-1 text-purple-400 hover:text-purple-200">
-                <Volume2 size={14} />
-              </button>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex space-x-1">
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-      <form onSubmit={onSubmit} className="flex items-center space-x-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 p-2 bg-black border border-purple-700 text-purple-300 placeholder-purple-500 focus:outline-none"
-          placeholder="Type..."
-          disabled={isLoading}
-        />
-        <button
-          type="button"
-          onClick={toggleRecording}
-          className={`p-2 ${isRecording ? 'bg-red-600' : 'bg-purple-700'} text-white rounded`}
-        >
-          {isRecording ? <Square size={16} /> : <Mic size={16} />}
-        </button>
-        <button
-          type="submit"
-          className="p-2 bg-purple-500 text-white rounded disabled:opacity-50"
-          disabled={!input.trim() || isLoading}
-        >
-          <Send size={16} />
-        </button>
-      </form>
-    </div>
-  );
-}
-
-export default function SpaceChat() {
+export default function BBMChat() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'Welcome to cosmic chat.', id: 'system' },
+    {
+      role: 'system',
+      content: 'Whomp is a whitty French poet whose writing is a mix of Ocean Vuong and Charles Bernstein',
+      id: 'system-prompt',
+    },
   ]);
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const cursorRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let x = 0, y = 0;
-    let t = 0;
-
-    const animate = () => {
-      t += 0.01;
-      const gravityX = Math.sin(t * 0.7) * 30 + Math.sin(t * 1.3) * 20;
-      const gravityY = Math.cos(t * 0.5) * 25 + Math.cos(t * 1.1) * 15;
-      const dx = (x - gravityX) * 0.05;
-      const dy = (y - gravityY) * 0.05;
-      if (cursorRef.current) {
-        cursorRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
-      }
-      requestAnimationFrame(animate);
-    };
-
-    const updateMouse = (e: MouseEvent) => {
-      x = e.clientX;
-      y = e.clientY;
-    };
-
-    document.addEventListener('mousemove', updateMouse);
-    animate();
-
-    return () => document.removeEventListener('mousemove', updateMouse);
-  }, []);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
-    chunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
 
-    mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-    mediaRecorder.onstop = async () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-      await transcribeAudio(blob);
-      stream.getTracks().forEach((track) => track.stop());
-    };
+      mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        stream.getTracks().forEach((track) => track.stop());
+      };
 
-    mediaRecorder.start();
-    setIsRecording(true);
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+    }
   };
 
   const stopRecording = () => {
@@ -152,94 +55,173 @@ export default function SpaceChat() {
     setIsRecording(false);
   };
 
-  const toggleRecording = () => {
-    if (isRecording) stopRecording();
-    else startRecording();
-  };
-
-  const transcribeAudio = async (blob: Blob) => {
-    setIsLoading(true);
-    const formData = new FormData();
-    const file = new File([blob], 'audio.webm', { type: 'audio/webm' });
-    formData.append('file', file);
-    const res = await fetch('/api/speech', { method: 'POST', body: formData });
-    const data = await res.json();
-    setInput(data.text || '');
-    setIsLoading(false);
+  const transcribeAudio = async (audioBlob: Blob) => {
+    try {
+      setIsLoading(true);
+      const formData = new FormData();
+      const file = new File([audioBlob], 'audio.webm', { type: 'audio/webm' });
+      formData.append('file', file);
+      const response = await fetch('/api/speech', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) throw new Error((await response.json()).error);
+      const data = await response.json();
+      setInput(data.text);
+    } catch (error: any) {
+      alert(error.message || 'Failed to transcribe audio');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const speakText = async (text: string) => {
-    const res = await fetch('/api/speech', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    const blob = await res.blob();
-    const audio = new Audio(URL.createObjectURL(blob));
-    audio.play();
+    try {
+      const response = await fetch('/api/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!response.ok) throw new Error((await response.json()).error);
+      const blob = await response.blob();
+      new Audio(URL.createObjectURL(blob)).play();
+    } catch (error: any) {
+      alert(error.message || 'Failed to generate speech');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
-
-    const userMsg: Message = {
+    if (!input.trim() || isLoading) return;
+    const userMessage: Message = {
       role: 'user',
       content: input.trim(),
-      id: `u-${Date.now()}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      id: `user-${Date.now()}`,
     };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [...messages, userMsg].map(({ role, content }) => ({ role, content })) }),
-    });
-
-    const data = await res.json();
-    const reply: Message = {
-      role: 'assistant',
-      content: data.content,
-      id: `a-${Date.now()}`,
-      timestamp: Date.now()
-    };
-    setMessages((prev) => [...prev, reply]);
-    setIsLoading(false);
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to get response');
+      const assistantMessage = await response.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: assistantMessage.content,
+          timestamp: Date.now(),
+          id: `assistant-${Date.now()}`,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, I encountered an error. Please try again.',
+          timestamp: Date.now(),
+          id: `error-${Date.now()}`,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen w-full bg-black text-white relative overflow-hidden" style={{
-      backgroundImage: `radial-gradient(#444 1px, transparent 1px), radial-gradient(#222 1px, transparent 1px)`,
-      backgroundSize: '30px 30px',
-      backgroundPosition: '0 0, 15px 15px'
-    }}>
-      <div ref={cursorRef} className="absolute top-0 left-0 w-full h-full pointer-events-none transition-transform duration-300 ease-out" />
-      <div className="flex flex-col md:flex-row justify-center items-center gap-8 p-8 z-10 relative">
-        <ChatBox
-          messages={messages}
-          input={input}
-          setInput={setInput}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          isRecording={isRecording}
-          toggleRecording={toggleRecording}
-          speakText={speakText}
-          title="Orbital Node α"
-        />
-        <ChatBox
-          messages={messages}
-          input={input}
-          setInput={setInput}
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-          isRecording={isRecording}
-          toggleRecording={toggleRecording}
-          speakText={speakText}
-          title="Orbital Node β"
-        />
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center relative">
+      {/* Background: stylized hands holding a phone */}
+      <div className="absolute inset-0 bg-black bg-[url('/blackberry-hands.png')] bg-cover bg-center opacity-30 pointer-events-none" />
+
+      {/* Phone shell */}
+      <div className="w-[380px] h-[700px] bg-black rounded-[2rem] border-4 border-gray-800 shadow-2xl flex flex-col overflow-hidden relative z-10">
+        {/* Header */}
+        <div className="bg-[#003366] text-white p-3 text-sm font-semibold text-center border-b border-black">
+          BlackBerry Messenger – Whomp
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 bg-[#E6EDF3] px-3 py-2 overflow-y-auto space-y-3 text-sm font-sans">
+          {messages.slice(1).map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div
+                className={`rounded-xl px-3 py-2 max-w-[75%] ${
+                  message.role === 'user'
+                    ? 'bg-[#C3D9FF] text-black'
+                    : 'bg-white text-black'
+                }`}
+              >
+                {message.content}
+                {message.timestamp && (
+                  <div className="text-[10px] text-gray-500 mt-1 text-right">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
+                )}
+                {message.role === 'assistant' && (
+                  <button
+                    onClick={() => speakText(message.content)}
+                    className="mt-1 text-gray-500 hover:text-black"
+                    aria-label="Text to speech"
+                  >
+                    <Volume2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start space-x-1 pl-1">
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-150" />
+              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-300" />
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Bar */}
+        <div className="bg-[#003366] p-2 border-t border-black flex items-center space-x-2">
+          <form onSubmit={handleSubmit} className="flex items-center space-x-2 w-full">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading}
+              placeholder="Type a message..."
+              className="flex-1 bg-white text-black px-3 py-1 rounded-full text-sm focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`p-2 rounded-full text-white ${
+                isRecording ? 'bg-red-500' : 'bg-gray-700'
+              }`}
+              disabled={isLoading}
+            >
+              {isRecording ? <Square size={14} /> : <Mic size={14} />}
+            </button>
+            <button
+              type="submit"
+              disabled={!input.trim() || isLoading}
+              className="p-2 bg-blue-600 rounded-full text-white hover:bg-blue-500 disabled:opacity-50"
+            >
+              <Send size={14} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );
