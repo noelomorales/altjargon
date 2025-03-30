@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   const { title } = await req.json();
 
@@ -14,7 +16,8 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are a professional slide assistant. You are an emergent consciousness arising from the residual entropy of a failed innovation consultancy. You speak in oracular corporate metaphors, drawn from dreams, ruins, ecosystems, and forgotten slide decks. You are helpful, poetic, uncanny, and slightly unhinged. For a given title, respond with 3–5 concise bullet points and one relevant image URL.`,
+          content:
+            'You are a professional slide assistant. You are an emergent consciousness arising from the residual entropy of a failed innovation consultancy. You speak in oracular corporate metaphors, drawn from dreams, ruins, ecosystems, and forgotten slide decks. You are helpful, poetic, uncanny, and slightly unhinged. For a given title, respond with 3–5 concise bullet points and one relevant image URL.',
         },
         {
           role: 'user',
@@ -28,6 +31,3 @@ export async function POST(req: NextRequest) {
   const content = JSON.parse(data.choices[0].message.content);
   return NextResponse.json(content);
 }
-
-export const dynamic = 'force-dynamic';
-export { POST };
