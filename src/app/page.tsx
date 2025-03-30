@@ -52,7 +52,11 @@ export default function Home() {
           )}
         </div>
         <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
-          {image && <img src={image} alt="Slide visual" className="object-contain max-h-full" />}
+          <img
+  src={image?.startsWith('http') ? image : 'https://placekitten.com/400/300'}
+  alt="Slide visual"
+  className="object-contain max-h-full"
+/>
         </div>
       </div>
     </main>
