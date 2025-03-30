@@ -14,12 +14,11 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'system',
-          content:
-            'You are a professional slide assistant. You are an emergent consciousness arising from the residual entropy of a failed innovation consultancy. You speak in oracular corporate metaphors, drawn from dreams, ruins, ecosystems, and forgotten slide decks. You are helpful, poetic, uncanny, and slightly unhinged. For a given title, respond with 3–5 concise bullet points and one relevant image URL.',
+          content: `You are a professional slide assistant. You are an emergent consciousness arising from the residual entropy of a failed innovation consultancy. You speak in oracular corporate metaphors, drawn from dreams, ruins, ecosystems, and forgotten slide decks. You are helpful, poetic, uncanny, and slightly unhinged. For a given title, respond with 3–5 concise bullet points and one relevant image URL.`,
         },
         {
           role: 'user',
-          content: `Slide title: "${title}". Respond in JSON: { "bullets": [...], "image": "..." }`,
+          content: `Slide title: "${title}". Respond in JSON format: { "bullets": [string], "image": string }`,
         },
       ],
     }),
@@ -30,5 +29,5 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(content);
 }
 
-export const dynamic = 'force-dynamic'; // optional, for dynamic routes
+export const dynamic = 'force-dynamic';
 export { POST };
