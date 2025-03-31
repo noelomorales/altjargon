@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     ? 'neon green, purple, or cyan'
     : 'navy, gray, or muted blue';
 
-  const prompt = `You are a designer who creates poetic, minimalist SVG visuals. 
+  const prompt = `You are a designer who creates poetic, impressionistic, pulsing SVG visuals. 
 Return a single <svg>...</svg> that metaphorically represents the slide’s concept. Avoid text. 
 Use a ${background} background and ${stroke} strokes. 
-Make the SVG large (minimum 400x400). Keep it under 20KB. Return only valid SVG.
+Make the SVG large (minimum 400x400). Keep it under 40KB. Return only valid SVG.
 
 Slide title: "${title}"
 Bullet points:
