@@ -8,11 +8,36 @@ export default function Home() {
   const [image, setImage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  async function generateImage(prompt: string): Promise<string | null> {
+    try {
+      const res = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt,
+          n: 1,
+          size: '1024x1024',
+          response_format: 'url',
+        }),
+      });
+
+      const data = await res.json();
+      return data?.data?.[0]?.url || null;
+    } catch (err) {
+      console.error('Image generation failed:', err);
+      return null;
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-
     setLoading(true);
+
     try {
       const res = await fetch('/api/generateSlideContent', {
         method: 'POST',
@@ -21,11 +46,15 @@ export default function Home() {
       });
 
       const data = await res.json();
-      setBullets(data.bullets || []);
-      setImage(data.image || '');
-    } catch {
+      setBullets(data.bullets);
+
+      const imageUrl = await generateImage(data.imagePrompt);
+      setImage(imageUrl || '');
+    } catch (err) {
       alert('Failed to fetch slide content');
+      console.error(err);
     }
+
     setLoading(false);
   };
 
@@ -52,11 +81,7 @@ export default function Home() {
           )}
         </div>
         <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
-          <img
-  src={image?.startsWith('http') ? image : 'https://placekitten.com/400/300'}
-  alt="Slide visual"
-  className="object-contain max-h-full"
-/>
+          {image && <img src={image} alt="Slide visual" className="object-contain max-h-full" />}
         </div>
       </div>
     </main>
