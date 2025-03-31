@@ -73,11 +73,13 @@ export default function Home() {
           {loading ? (
             <p className="text-gray-500 text-sm">Loading...</p>
           ) : (
-            <ul className="list-disc pl-6 space-y-2 text-lg">
-              {bullets.map((point, i) => (
-                <li key={i}>{point}</li>
-              ))}
-            </ul>
+            {Array.isArray(bullets) && bullets.length > 0 && (
+  <ul className="list-disc pl-6 space-y-2 text-lg">
+    {bullets.map((point, i) => (
+      <li key={i}>{point}</li>
+    ))}
+  </ul>
+)}
           )}
         </div>
         <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
