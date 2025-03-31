@@ -51,51 +51,9 @@ export default function PresentationBuilder() {
     }
   };
 
-  const generateImageAsync = async (prompt: string): Promise<string> => {
-    try {
-      // Step 1: Initiate generation
-      const init = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'dall-e-3',
-          prompt,
-          n: 1,
-          size: '1024x1024',
-          response_format: 'url',
-        }),
-      });
-
-      const initData = await init.json();
-      const retryUrl = `https://api.openai.com/v1/images/generations/${initData.id}`;
-
-      // Step 2: Poll until ready
-      for (let i = 0; i < 10; i++) {
-        await new Promise((res) => setTimeout(res, 3000));
-        const poll = await fetch(retryUrl, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-          },
-        });
-
-        const statusData = await poll.json();
-        if (statusData.status === 'succeeded') {
-          return statusData.data[0].url;
-        }
-        if (statusData.status === 'failed') {
-          throw new Error('Image generation failed');
-        }
-      }
-
-      throw new Error('Image polling timed out');
-    } catch (err) {
-      console.error('[image async] error:', err);
-      return fallbackImage;
-    }
+  const fetchStockImage = (query: string): string => {
+    const safeQuery = encodeURIComponent(query.split(' ').slice(0, 4).join(' '));
+    return `https://source.unsplash.com/800x800/?${safeQuery},corporate,business`;
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -112,20 +70,11 @@ export default function PresentationBuilder() {
 
       for (const title of outline) {
         const content = await generateSlideContent(title);
-        const slide: Slide = { ...content, image: '' };
+        const image = fetchStockImage(content.imagePrompt || title);
+        const slide: Slide = { ...content, image };
         slideData.push(slide);
         setSlides([...slideData]);
-
-        // generate image in browser
-        generateImageAsync(slide.imagePrompt).then((url) => {
-          setSlides((prev) => {
-            const updated = [...prev];
-            updated[slideData.length - 1] = { ...slide, image: url };
-            return updated;
-          });
-        });
-
-        await new Promise((res) => setTimeout(res, 500));
+        await new Promise((res) => setTimeout(res, 300)); // throttle
       }
     } catch (err) {
       alert('Failed to generate deck');
@@ -180,11 +129,11 @@ export default function PresentationBuilder() {
 
             {/* Image pane */}
             <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
-              {slide?.image ? (
-                <img src={slide.image} alt="Slide visual" className="object-contain max-h-full" />
-              ) : (
-                <div className="text-xs text-gray-400 italic animate-pulse">Generating image…</div>
-              )}
+              <img
+                src={slide?.image || fallbackImage}
+                alt="Slide visual"
+                className="object-contain max-h-full"
+              />
             </div>
           </div>
 
