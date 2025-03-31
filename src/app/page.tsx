@@ -51,25 +51,57 @@ export default function PresentationBuilder() {
     }
   };
 
-  const generateImage = async (prompt: string): Promise<string> => {
+  const generateImageAsync = async (prompt: string): Promise<string> => {
     try {
-      const res = await fetch('/api/generateImage', {
+      // Step 1: Initiate generation
+      const init = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'dall-e-3',
+          prompt,
+          n: 1,
+          size: '1024x1024',
+          response_format: 'url',
+        }),
       });
-      const text = await res.text();
-      const data = JSON.parse(text);
-      return data.image || data.fallback || fallbackImage;
+
+      const initData = await init.json();
+      const retryUrl = `https://api.openai.com/v1/images/generations/${initData.id}`;
+
+      // Step 2: Poll until ready
+      for (let i = 0; i < 10; i++) {
+        await new Promise((res) => setTimeout(res, 3000));
+        const poll = await fetch(retryUrl, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
+          },
+        });
+
+        const statusData = await poll.json();
+        if (statusData.status === 'succeeded') {
+          return statusData.data[0].url;
+        }
+        if (statusData.status === 'failed') {
+          throw new Error('Image generation failed');
+        }
+      }
+
+      throw new Error('Image polling timed out');
     } catch (err) {
-      console.error('Image error:', err);
+      console.error('[image async] error:', err);
       return fallbackImage;
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!prompt.trim()) return;
+
     setGenerating(true);
     setSlides([]);
     setCurrent(0);
@@ -84,8 +116,8 @@ export default function PresentationBuilder() {
         slideData.push(slide);
         setSlides([...slideData]);
 
-        // Start image generation in background
-        generateImage(slide.imagePrompt).then((url) => {
+        // generate image in browser
+        generateImageAsync(slide.imagePrompt).then((url) => {
           setSlides((prev) => {
             const updated = [...prev];
             updated[slideData.length - 1] = { ...slide, image: url };
@@ -93,7 +125,7 @@ export default function PresentationBuilder() {
           });
         });
 
-        await new Promise((res) => setTimeout(res, 500)); // throttle requests
+        await new Promise((res) => setTimeout(res, 500));
       }
     } catch (err) {
       alert('Failed to generate deck');
@@ -105,6 +137,13 @@ export default function PresentationBuilder() {
 
   const slide = slides[current];
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f2f2f7] p-8">
       {slides.length === 0 ? (
@@ -113,6 +152,7 @@ export default function PresentationBuilder() {
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="e.g. AI startup pitch for logistics"
             className="w-full p-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
             rows={4}
