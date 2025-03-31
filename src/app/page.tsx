@@ -1,6 +1,7 @@
-/* Glitch mode enhancements
-   - Glitch text effect in dark theme
-   - Emoji arrows in nav buttons
+/* Final regeneration of page.tsx
+   - Includes glitch effect, caption, speaker notes
+   - Defensive guards against missing slides
+   - UI navigation above and below
 */
 
 'use client';
@@ -40,11 +41,17 @@ export default function PresentationBuilder() {
   const glitch = theme === 'dark' ? 'animate-[glitch_1s_infinite] tracking-wide' : '';
   const glitchStyle = theme === 'dark' ? 'text-lime-300 drop-shadow-[0_0_2px_lime]' : '';
 
-  const handleSubmit = async () => {
-    // placeholder
-  };
+  const slide = Array.isArray(slides) && typeof current === 'number' && slides[current]
+    ? slides[current]
+    : {
+        title: '',
+        bullets: [],
+        svg: '',
+        notes: '',
+        svgPrompt: '',
+        caption: '',
+      };
 
-  const slide = slides[current];
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
@@ -68,8 +75,7 @@ export default function PresentationBuilder() {
         </button>
       </div>
 
-      {/* Top nav */}
-      {slides.length > 0 && (
+      {Array.isArray(slides) && slides.length > 0 && typeof current === 'number' && (
         <div className="flex justify-between items-center mb-4 w-full max-w-[90rem]">
           <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
@@ -77,13 +83,13 @@ export default function PresentationBuilder() {
         </div>
       )}
 
-      {slides.length > 0 && slide && (
+      {Array.isArray(slides) && slides.length > 0 && slide && (
         <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 flex flex-col ${card}`}>
           <div className="flex-1 flex gap-8">
             <div className="flex-1 flex flex-col">
               <h2 className={`text-4xl font-bold mb-6 border-b pb-3 border-current leading-tight tracking-tight ${glitch}`}>{slide.title}</h2>
               <ul className={`list-disc pl-6 space-y-3 text-xl ${glitchStyle}`}>
-                {slide.bullets?.slice(0, visibleBullets[current] || slide.bullets.length).map((pt, i) => <li key={i}>{pt}</li>)}
+                {slide.bullets?.map((pt, i) => <li key={i}>{pt}</li>)}
               </ul>
             </div>
             <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
@@ -114,8 +120,7 @@ export default function PresentationBuilder() {
         </div>
       )}
 
-      {/* Bottom nav */}
-      {slides.length > 0 && (
+      {Array.isArray(slides) && slides.length > 0 && (
         <div className="flex justify-between items-center mt-6 w-full max-w-[90rem]">
           <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
