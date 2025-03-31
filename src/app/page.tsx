@@ -19,6 +19,7 @@ export default function PresentationBuilder() {
   const [theme, setTheme] = useState<Theme>('clean');
   const [view, setView] = useState<ViewMode>('single');
   const [savedDecks, setSavedDecks] = useState<any[]>([]);
+  const [visibleBullets, setVisibleBullets] = useState<number[]>([]);
 
   useEffect(() => {
     fetch('/api/savedDecks')
@@ -78,11 +79,30 @@ export default function PresentationBuilder() {
     }
   };
 
+  const revealBullets = (index: number, total: number) => {
+    setVisibleBullets((prev) => {
+      const updated = [...prev];
+      updated[index] = 0;
+      return updated;
+    });
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      setVisibleBullets((prev) => {
+        const updated = [...prev];
+        updated[index] = count;
+        return updated;
+      });
+      if (count >= total) clearInterval(interval);
+    }, 400);
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!prompt.trim()) return;
     setGenerating(true);
     setSlides([]);
+    setVisibleBullets([]);
     setCurrent(0);
 
     try {
@@ -91,6 +111,7 @@ export default function PresentationBuilder() {
 
       for (const title of outline) {
         const content = await generateSlideContent(title);
+        revealBullets(slideData.length, content.bullets.length);
         const svg = await generateSvg(title, content.bullets);
         const slide: Slide = { title, bullets: content.bullets, svg };
         slideData.push(slide);
@@ -134,7 +155,7 @@ export default function PresentationBuilder() {
       : 'bg-white border border-gray-200 text-black shadow-xl';
   const button =
     theme === 'dark'
-      ? 'bg-lime-500 text-black hover:bg-lime-300'
+      ? 'bg-lime-400 text-black hover:bg-lime-200'
       : 'bg-black text-white hover:bg-gray-800';
   const textarea =
     theme === 'dark'
@@ -143,13 +164,6 @@ export default function PresentationBuilder() {
 
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 transition-all ${bg}`}>
-      <style jsx global>{`
-        ::selection {
-          background: ${theme === 'dark' ? '#39ff14' : '#000'};
-          color: ${theme === 'dark' ? '#000' : '#fff'};
-        }
-      `}</style>
-
       <div className="absolute top-4 right-4 flex gap-2">
         <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
           {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
@@ -179,9 +193,7 @@ export default function PresentationBuilder() {
           >
             <option value="" disabled>📂 Load Deck</option>
             {savedDecks.map((deck, i) => (
-              <option key={i} value={i}>
-                {deck.name}
-              </option>
+              <option key={i} value={i}>{deck.name}</option>
             ))}
           </select>
         )}
@@ -220,10 +232,10 @@ export default function PresentationBuilder() {
             <div className="flex-1 flex flex-col">
               <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
-                {slide?.bullets.map((point, i) => <li key={i}>{point}</li>)}
+                {slide?.bullets.slice(0, visibleBullets[current] || 0).map((point, i) => <li key={i}>{point}</li>)}
               </ul>
             </div>
-            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black flex items-center justify-center p-4" dangerouslySetInnerHTML={{ __html: slide?.svg || '' }} />
+            <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current ${theme === 'dark' ? 'bg-black' : 'bg-white'} flex items-center justify-center p-4`} dangerouslySetInnerHTML={{ __html: slide?.svg || '' }} />
           </div>
           <div className="flex justify-between items-center mt-6">
             <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
