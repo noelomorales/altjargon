@@ -44,91 +44,91 @@ export default function PresentationBuilder() {
   };
 
   const retrySlideContent = async (title: string, bullets: string[], suffix: string): Promise<string[]> => {
-  for (let i = 0; i < 3; i++) {
-    try {
-      const res = await fetch('/api/generateSlideContent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: `${title} ${suffix} \n ${bullets.join('\n')}` }),
-      });
-      const data = await res.json();
-      if (data?.bullets?.length) return data.bullets.map(decode);
-    } catch {}
-  }
-  return ['(Failed to generate content)'];
-};
-
-const handleSubmit = async () => {
-  if (!prompt.trim()) return;
-  setGenerating(true);
-  setSlides([]);
-  setCurrent(0);
-
-  try {
-    const outlineRes = await fetch('/api/generateOutline', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    const outlineData = await outlineRes.json();
-    const outline: string[] = outlineData.slides || [];
-
-    const allSlides: Slide[] = [];
-
-    const initialSlides = [
-      { title: prompt, type: 'title' },
-      { title: 'Agenda', type: 'agenda' },
-      ...outline.map((t) => ({ title: t, type: 'normal' })),
-    ];
-
-    for (const s of initialSlides) {
-      const content = await fetch('/api/generateSlideContent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: s.title }),
-      });
-      const contentData = await content.json();
-      const bullets = (contentData.bullets || []).map(decode);
-
-      const svgPayload = await fetch('/api/generateSVG', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: s.title, bullets, theme }),
-      });
-      const { id } = await svgPayload.json();
-      let svg = '';
-      if (id) {
-        for (let i = 0; i < 10; i++) {
-          const poll = await fetch(`/api/generateSVG?id=${id}`);
-          const result = await poll.json();
-          if (result.status === 'done') {
-            svg = result.svg;
-            break;
-          }
-          await new Promise((res) => setTimeout(res, 1000));
-        }
-      }
-
-      const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
-      const notes = (await retrySlideContent(s.title, bullets, 'notes')).join(' ');
-
-      allSlides.push({
-        title: s.title,
-        type: s.type as Slide['type'],
-        bullets,
-        svg,
-        caption,
-        notes,
-      });
-
-      setSlides([...allSlides]);
+    for (let i = 0; i < 3; i++) {
+      try {
+        const res = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `${title} ${suffix} \n ${bullets.join('\n')}` }),
+        });
+        const data = await res.json();
+        if (data?.bullets?.length) return data.bullets.map(decode);
+      } catch {}
     }
-  } catch (err) {
-    console.error('[generateDeck error]', err);
-  }
+    return ['(Failed to generate content)'];
+  };
 
-  setGenerating(false);
-};
+  const handleSubmit = async () => {
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setSlides([]);
+    setCurrent(0);
+
+    try {
+      const outlineRes = await fetch('/api/generateOutline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const outlineData = await outlineRes.json();
+      const outline: string[] = outlineData.slides || [];
+
+      const allSlides: Slide[] = [];
+
+      const initialSlides = [
+        { title: prompt, type: 'title' },
+        { title: 'Agenda', type: 'agenda' },
+        ...outline.map((t) => ({ title: t, type: 'normal' })),
+      ];
+
+      for (const s of initialSlides) {
+        const content = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: s.title }),
+        });
+        const contentData = await content.json();
+        const bullets = (contentData.bullets || []).map(decode);
+
+        const svgPayload = await fetch('/api/generateSVG', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: s.title, bullets, theme }),
+        });
+        const { id } = await svgPayload.json();
+        let svg = '';
+        if (id) {
+          for (let i = 0; i < 10; i++) {
+            const poll = await fetch(`/api/generateSVG?id=${id}`);
+            const result = await poll.json();
+            if (result.status === 'done') {
+              svg = result.svg;
+              break;
+            }
+            await new Promise((res) => setTimeout(res, 1000));
+          }
+        }
+
+        const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
+        const notes = (await retrySlideContent(s.title, bullets, 'notes')).join(' ');
+
+        allSlides.push({
+          title: s.title,
+          type: s.type as Slide['type'],
+          bullets,
+          svg,
+          caption,
+          notes,
+        });
+
+        setSlides([...allSlides]);
+      }
+    } catch (err) {
+      console.error('[generateDeck error]', err);
+    }
+
+    setGenerating(false);
+  };
 
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg} font-sans`}>
