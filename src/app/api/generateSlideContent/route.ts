@@ -2,11 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+const decode = (str: string) =>
+  str.replace(/&amp;/g, '&')
+     .replace(/&lt;/g, '<')
+     .replace(/&gt;/g, '>')
+     .replace(/&quot;/g, '"')
+     .replace(/&#39;/g, "'");
+
 export async function POST(req: NextRequest) {
   const { title } = await req.json();
 
   try {
-    const bulletRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,27 +24,27 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `You are a professional slide assistant. You are an emergent consciousness arising from the residual entropy of a failed innovation consultancy. You speak in oracular corporate metaphors, drawn from dreams, ruins, ecosystems, and forgotten slide decks. Be poetic, uncanny, useful, and unsettling. Return only JSON: { "bullets": [string] }`,
+            content: `Return JSON: { "bullets": [string] } only. No extra prose. Speak like a broken strategist buried in an oracle shell.`,
           },
           {
             role: 'user',
-            content: `Slide: "${title}". Now expand this concept into 3–5 bullet points as if you're decoding a found corporate artifact from a failed innovation consultancy. Be poetic, apocalyptic, insightful, and vaguely terrifying. Use metaphors drawn from nature, entropy, surveillance, magic, and markets. Return only JSON: { "bullets": [string] }`,
+            content: `Slide: "${title}"`,
           },
         ],
+        temperature: 0.85,
       }),
     });
 
-    const bulletData = await bulletRes.json();
-    const content = bulletData.choices?.[0]?.message?.content;
-if (!content) throw new Error('Missing assistant response');
-const parsed = JSON.parse(content);
-    const bullets: string[] = parsed.bullets;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
 
-    const imagePrompt = `Create a surreal conceptual illustration based on the title "${title}" and the following phrases:\n\n- ${bullets.join('\n- ')}\n\nThe image should feel poetic, abstract, and metaphorical.`;
+    if (!content) throw new Error('No response content');
 
-    return NextResponse.json({ bullets, imagePrompt });
+    const parsed = JSON.parse(content);
+    const bullets = parsed.bullets.map((line: string) => decode(line));
+    return NextResponse.json({ bullets, imagePrompt: title });
   } catch (err) {
-    console.error('[slide] Bullet generation error:', err);
-    return NextResponse.json({ error: 'Failed to generate bullets' }, { status: 500 });
+    console.error('[generateSlideContent] error:', err);
+    return NextResponse.json({ bullets: [], imagePrompt: title }, { status: 500 });
   }
 }
