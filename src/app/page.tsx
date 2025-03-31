@@ -48,7 +48,7 @@ export default function PresentationBuilder() {
 
   const generateSvg = async (title: string, bullets: string[]): Promise<string> => {
     try {
-      const res = await fetch('/api/generateSvg', {
+      const res = await fetch('/api/generateSVG', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, bullets }),
