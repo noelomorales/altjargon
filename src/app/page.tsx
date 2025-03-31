@@ -14,6 +14,7 @@ export default function PresentationBuilder() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   const distillQuery = (text: string): string => {
     return text
@@ -102,42 +103,76 @@ export default function PresentationBuilder() {
     }
   };
 
+  const theme = darkMode
+    ? 'bg-black text-lime-400 font-mono'
+    : 'bg-[#f2f2f7] text-gray-800';
+
+  const cardTheme = darkMode
+    ? 'bg-[#111] border-lime-600 shadow-[0_0_8px_#0f0] text-lime-300'
+    : 'bg-white border-gray-200 shadow-xl text-black';
+
+  const buttonTheme = darkMode
+    ? 'bg-lime-700 text-black hover:bg-lime-500'
+    : 'bg-black text-white hover:bg-gray-800';
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f2f2f7] p-8">
+    <main className={`min-h-screen flex items-center justify-center p-8 ${theme}`}>
+      <style jsx global>{`
+        ::selection {
+          background: ${darkMode ? '#39ff14' : '#000'};
+          color: ${darkMode ? '#000' : '#fff'};
+        }
+      `}</style>
+
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className={`text-sm px-3 py-1 rounded ${buttonTheme}`}
+        >
+          {darkMode ? '🧿 Light Mode' : '🕳️ Dark Mode'}
+        </button>
+      </div>
+
       {slides.length === 0 ? (
         <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
-          <h1 className="text-2xl font-semibold text-gray-800">Generate a Slide Deck</h1>
+          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-lime-400' : 'text-gray-800'}`}>
+            Generate a Slide Deck
+          </h1>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. AI startup pitch for logistics"
-            className="w-full p-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className={`w-full p-4 rounded-md border ${
+              darkMode ? 'bg-[#111] border-lime-500 text-lime-300' : 'border-gray-300 text-black'
+            } focus:outline-none focus:ring-2 focus:ring-blue-400`}
             rows={4}
           />
           <button
             type="submit"
             disabled={generating}
-            className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+            className={`px-6 py-2 rounded disabled:opacity-50 ${buttonTheme}`}
           >
             {generating ? 'Generating…' : 'Generate Deck'}
           </button>
         </form>
       ) : (
-        <div className="w-full max-w-5xl h-[75vh] bg-white rounded-2xl shadow-xl p-10 flex flex-col">
+        <div className={`w-full max-w-5xl h-[75vh] rounded-2xl p-10 flex flex-col border ${cardTheme}`}>
           <div className="flex-1 flex">
             {/* Slide content */}
             <div className="flex-1 flex flex-col pr-8">
-              <h2 className="text-3xl font-bold mb-4 border-b pb-2">{slide?.title}</h2>
+              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
                 {slide?.bullets.map((point, i) => (
-                  <li key={i}>{point}</li>
+                  <li key={i} className="leading-relaxed tracking-wide">
+                    {point}
+                  </li>
                 ))}
               </ul>
             </div>
 
             {/* Image pane */}
-            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
+            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-gray-900 flex items-center justify-center">
               <img
                 src={slide?.image}
                 alt="Slide visual"
@@ -158,7 +193,7 @@ export default function PresentationBuilder() {
             >
               ◀ Previous
             </button>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm opacity-60">
               Slide {current + 1} of {slides.length}
             </div>
             <button
