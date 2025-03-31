@@ -1,161 +1,164 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export default function Home() {
-  const [title, setTitle] = useState('');
-  const [bullets, setBullets] = useState<string[]>([]);
-  const [image, setImage] = useState('');
-  const [imagePrompt, setImagePrompt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [imageError, setImageError] = useState(false);
+interface Slide {
+  title: string;
+  bullets: string[];
+  image: string;
+  imagePrompt: string;
+}
 
-  async function generateImage(prompt: string): Promise<string> {
-  try {
-    const res = await fetch('/api/generateImage', {
+export default function PresentationBuilder() {
+  const [prompt, setPrompt] = useState('');
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const [current, setCurrent] = useState(0);
+  const [generating, setGenerating] = useState(false);
+
+  const fallbackImage =
+    'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
+
+  const generateOutline = async (prompt: string): Promise<string[]> => {
+    const res = await fetch('/api/generateOutline', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt }),
     });
+    const data = await res.json();
+    return data.slides || [];
+  };
 
-    const text = await res.text();
-const isJSON = res.headers.get('content-type')?.includes('application/json');
+  const generateSlideContent = async (title: string): Promise<Omit<Slide, 'image'>> => {
+    const res = await fetch('/api/generateSlideContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const data = await res.json();
+    return {
+      title,
+      bullets: data.bullets || [],
+      imagePrompt: data.imagePrompt || '',
+    };
+  };
 
-let data;
-try {
-  data = isJSON ? JSON.parse(text) : { error: 'non-JSON error', fallback: fallbackImageURL };
-} catch {
-  console.error('[generateImage] parse fail:', text);
-  data = { error: 'parse failed', fallback: fallbackImageURL };
-}
-
-    if (!res.ok || !data.image) {
-      console.warn('[generateImage] fallback image used');
-      return data.fallback || 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
+  const generateImage = async (prompt: string): Promise<string> => {
+    try {
+      const res = await fetch('/api/generateImage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const text = await res.text();
+      const data = JSON.parse(text);
+      return data.image || data.fallback || fallbackImage;
+    } catch (err) {
+      console.error('Image error:', err);
+      return fallbackImage;
     }
-
-    return data.image;
-  } catch (err) {
-    console.error('Image generation failed:', err);
-    return 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
-  }
-}
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-
-    setLoading(true);
-    setImage('');
-    setBullets([]);
-    setImageError(false);
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setSlides([]);
+    setCurrent(0);
 
     try {
-      const res = await fetch('/api/generateSlideContent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
+      const outline = await generateOutline(prompt);
+      const slideData: Slide[] = [];
+
+      for (const title of outline) {
+        const content = await generateSlideContent(title);
+        slideData.push({ ...content, image: '' });
+        setSlides([...slideData]); // update UI per slide
+      }
+
+      // start background image generation
+      slideData.forEach(async (slide, i) => {
+        const image = await generateImage(slide.imagePrompt);
+        setSlides((prev) => {
+          const updated = [...prev];
+          updated[i] = { ...updated[i], image };
+          return updated;
+        });
       });
-
-      const data = await res.json();
-      setBullets(data.bullets || []);
-      setImagePrompt(data.imagePrompt || '');
-
-      const imageUrl = await generateImage(data.imagePrompt);
-      setImage(imageUrl || '');
     } catch (err) {
-      alert('Failed to fetch slide content');
+      alert('Failed to generate deck');
       console.error(err);
     }
 
-    setLoading(false);
+    setGenerating(false);
   };
 
-  const handleRetryImage = async () => {
-    setImageError(false);
-    setImage('');
-    const newUrl = await generateImage(imagePrompt);
-    setImage(newUrl || '');
-  };
+  const slide = slides[current];
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f2f2f7] p-8">
-      <div className="w-full max-w-5xl h-[75vh] bg-white rounded-2xl shadow-xl p-10 flex">
-        {/* LEFT PANEL */}
-        <div className="flex-1 flex flex-col pr-8">
-          <form onSubmit={handleSubmit}>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter slide title..."
-              className="text-4xl font-bold mb-6 w-full border-b border-gray-300 focus:outline-none focus:border-blue-400"
-            />
-          </form>
-
-          {loading ? (
-            <div className="text-gray-500 text-sm flex items-center gap-2">
-              <svg
-                className="animate-spin h-4 w-4 text-gray-500"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8z"
-                ></path>
-              </svg>
-              Generating slide...
-            </div>
-          ) : (
-            bullets.length > 0 && (
+      {slides.length === 0 ? (
+        <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
+          <h1 className="text-2xl font-semibold text-gray-800">Generate a Slide Deck</h1>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="e.g. AI startup pitch for logistics"
+            className="w-full p-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            rows={4}
+          />
+          <button
+            type="submit"
+            disabled={generating}
+            className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+          >
+            {generating ? 'Generating…' : 'Generate Deck'}
+          </button>
+        </form>
+      ) : (
+        <div className="w-full max-w-5xl h-[75vh] bg-white rounded-2xl shadow-xl p-10 flex flex-col">
+          <div className="flex-1 flex">
+            {/* Slide content */}
+            <div className="flex-1 flex flex-col pr-8">
+              <h2 className="text-3xl font-bold mb-4 border-b pb-2">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
-                {bullets.map((point, i) => (
+                {slide?.bullets.map((point, i) => (
                   <li key={i}>{point}</li>
                 ))}
               </ul>
-            )
-          )}
-        </div>
-
-        {/* RIGHT PANEL */}
-        <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
-          {loading ? (
-            <div className="text-gray-400 animate-pulse">Generating image...</div>
-          ) : imageError ? (
-            <div className="text-center">
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Black_Hole_-_Messier_87.jpg/1024px-Black_Hole_-_Messier_87.jpg"
-                alt="Fallback visual"
-                className="object-contain max-h-full mb-2"
-              />
-              <button
-                onClick={handleRetryImage}
-                className="text-xs px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
-              >
-                Retry image
-              </button>
             </div>
-          ) : (
-            image && (
-              <img
-                src={image}
-                alt="Slide visual"
-                className="object-contain max-h-full"
-              />
-            )
-          )}
+
+            {/* Image pane */}
+            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
+              {slide?.image ? (
+                <img src={slide.image} alt="Slide visual" className="object-contain max-h-full" />
+              ) : (
+                <div className="text-xs text-gray-400 italic animate-pulse">Generating image…</div>
+              )}
+            </div>
+          </div>
+
+          {/* Nav */}
+          <div className="flex justify-between items-center mt-6">
+            <button
+              disabled={current === 0}
+              onClick={() => setCurrent((i) => i - 1)}
+              className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+            >
+              ◀ Previous
+            </button>
+            <div className="text-sm text-gray-500">
+              Slide {current + 1} of {slides.length}
+            </div>
+            <button
+              disabled={current === slides.length - 1}
+              onClick={() => setCurrent((i) => i + 1)}
+              className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+            >
+              Next ▶
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }
