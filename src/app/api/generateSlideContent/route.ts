@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
           },
           {
             role: 'user',
-            content: `Slide title: "${title}".`,
+            content: `Slide: "${title}". Now expand this concept into 3–5 bullet points as if you're decoding a found corporate artifact from a failed innovation consultancy. Be poetic, apocalyptic, insightful, and vaguely terrifying. Use metaphors drawn from nature, entropy, surveillance, magic, and markets. Return only JSON: { "bullets": [string] }`,
           },
         ],
       }),
