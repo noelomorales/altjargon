@@ -57,7 +57,8 @@ export default function PresentationBuilder() {
         body: JSON.stringify({ title, bullets }),
       });
       const data = await res.json();
-      return data.svg || '';
+      const raw = data.svg || '';
+      return raw.replace(/```svg\n?|\n?```/g, '').trim(); // strip ```svg fences
     } catch (err) {
       console.error('[generateSVG] failed:', err);
       return '';
@@ -104,12 +105,17 @@ export default function PresentationBuilder() {
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card =
     theme === 'dark'
-      ? 'bg-[#111] border border-lime-500 text-lime-200 shadow-[0_0_12px_#0f0]'
+      ? 'bg-[#111] border border-lime-500 text-lime-200 shadow-[0_0_20px_#0f0]'
       : 'bg-white border border-gray-200 text-black shadow-xl';
+
+  const glitchText = theme === 'dark' ? 'font-mono tracking-wider animate-glitch text-lime-300' : '';
+  const bulletText = theme === 'dark' ? 'text-lime-400 font-mono tracking-tight' : '';
+
   const button =
     theme === 'dark'
       ? 'bg-lime-500 text-black hover:bg-lime-300'
       : 'bg-black text-white hover:bg-gray-800';
+
   const textarea =
     theme === 'dark'
       ? 'bg-[#111] border-lime-500 text-lime-300'
@@ -118,6 +124,17 @@ export default function PresentationBuilder() {
   return (
     <main className={`min-h-screen flex items-center justify-center p-8 transition-all ${bg}`}>
       <style jsx global>{`
+        @keyframes glitch {
+          0% { transform: skewX(0deg); }
+          20% { transform: skewX(-5deg); }
+          40% { transform: skewX(3deg); }
+          60% { transform: skewX(-2deg); }
+          80% { transform: skewX(1deg); }
+          100% { transform: skewX(0deg); }
+        }
+        .animate-glitch {
+          animation: glitch 1.5s infinite;
+        }
         ::selection {
           background: ${theme === 'dark' ? '#39ff14' : '#000'};
           color: ${theme === 'dark' ? '#000' : '#fff'};
@@ -155,12 +172,14 @@ export default function PresentationBuilder() {
           </button>
         </form>
       ) : (
-        <div className={`w-full max-w-5xl h-[75vh] rounded-2xl p-10 flex flex-col ${card}`}>
-          <div className="flex-1 flex">
+        <div className={`w-full max-w-[90rem] h-[85vh] rounded-2xl p-10 flex flex-col ${card}`}>
+          <div className="flex-1 flex gap-8">
             {/* Slide content */}
-            <div className="flex-1 flex flex-col pr-8">
-              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
-              <ul className="list-disc pl-6 space-y-2 text-lg">
+            <div className="flex-1 flex flex-col">
+              <h2 className={`text-3xl font-bold mb-4 border-b pb-2 border-current ${glitchText}`}>
+                {slide?.title}
+              </h2>
+              <ul className={`list-disc pl-6 space-y-2 text-lg ${bulletText}`}>
                 {slide?.bullets.map((point, i) => (
                   <li key={i}>{point}</li>
                 ))}
@@ -169,9 +188,7 @@ export default function PresentationBuilder() {
 
             {/* SVG panel */}
             <div
-              className={`w-[40%] h-full overflow-hidden rounded-xl border border-current ${
-                theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'
-              } flex items-center justify-center p-2`}
+              className={`w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black flex items-center justify-center p-4`}
               dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
             />
           </div>
