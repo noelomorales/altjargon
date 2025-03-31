@@ -58,10 +58,12 @@ export default function PresentationBuilder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, bullets, theme }),
       });
+
       const { id } = await res.json();
       if (!id) throw new Error('No SVG ID returned');
+
       for (let i = 0; i < 10; i++) {
-        await new Promise((res) => setTimeout(res, 2000));
+        await new Promise((r) => setTimeout(r, 2000));
         const poll = await fetch(`/api/generateSVG?id=${id}`);
         if (!poll.ok) continue;
         const text = await poll.text();
@@ -72,6 +74,7 @@ export default function PresentationBuilder() {
           console.warn('[generateSVG] invalid JSON:', text);
         }
       }
+
       throw new Error('SVG polling timeout');
     } catch (err) {
       console.error('[generateSVG] failed:', err);
@@ -85,6 +88,7 @@ export default function PresentationBuilder() {
       updated[index] = 0;
       return updated;
     });
+
     let count = 0;
     const interval = setInterval(() => {
       count++;
@@ -94,12 +98,13 @@ export default function PresentationBuilder() {
         return updated;
       });
       if (count >= total) clearInterval(interval);
-    }, 400);
+    }, 300);
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!prompt.trim()) return;
+
     setGenerating(true);
     setSlides([]);
     setVisibleBullets([]);
@@ -155,7 +160,7 @@ export default function PresentationBuilder() {
       : 'bg-white border border-gray-200 text-black shadow-xl';
   const button =
     theme === 'dark'
-      ? 'bg-lime-400 text-black hover:bg-lime-200'
+      ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]'
       : 'bg-black text-white hover:bg-gray-800';
   const textarea =
     theme === 'dark'
@@ -222,7 +227,9 @@ export default function PresentationBuilder() {
             <div key={i} onClick={() => { setCurrent(i); setView('single'); }} className={`cursor-pointer p-4 rounded-xl ${card}`}>
               <h2 className="text-xl font-bold mb-2">{s.title}</h2>
               <ul className="text-sm list-disc pl-4 space-y-1">{s.bullets.map((pt, j) => <li key={j}>{pt}</li>)}</ul>
-              <div className="mt-4 w-full aspect-square bg-black p-2 flex items-center justify-center rounded border border-current" dangerouslySetInnerHTML={{ __html: s.svg || '' }} />
+              <div className="mt-4 w-full aspect-square p-2 flex items-center justify-center rounded border border-current"
+                   style={{ backgroundColor: theme === 'dark' ? 'black' : 'white' }}
+                   dangerouslySetInnerHTML={{ __html: s.svg || '' }} />
             </div>
           ))}
         </div>
@@ -235,7 +242,9 @@ export default function PresentationBuilder() {
                 {slide?.bullets.slice(0, visibleBullets[current] || 0).map((point, i) => <li key={i}>{point}</li>)}
               </ul>
             </div>
-            <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current ${theme === 'dark' ? 'bg-black' : 'bg-white'} flex items-center justify-center p-4`} dangerouslySetInnerHTML={{ __html: slide?.svg || '' }} />
+            <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex items-center justify-center p-4`}
+                 style={{ backgroundColor: theme === 'dark' ? 'black' : 'white' }}
+                 dangerouslySetInnerHTML={{ __html: slide?.svg || '' }} />
           </div>
           <div className="flex justify-between items-center mt-6">
             <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
