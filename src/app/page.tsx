@@ -15,32 +15,21 @@ export default function PresentationBuilder() {
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
 
-  const getEmojiForSlide = (title: string, index: number): string => {
-    const keyword = title.toLowerCase();
-    if (keyword.includes('team')) return '👥';
-    if (keyword.includes('problem')) return '❗';
-    if (keyword.includes('solution')) return '💡';
-    if (keyword.includes('product')) return '📦';
-    if (keyword.includes('market')) return '📊';
-    if (keyword.includes('vision')) return '🔭';
-    if (keyword.includes('finance') || keyword.includes('money')) return '💰';
-    if (keyword.includes('goal') || keyword.includes('objective')) return '🎯';
-    if (keyword.includes('timeline') || keyword.includes('schedule')) return '🗓️';
-    if (keyword.includes('growth') || keyword.includes('traction')) return '📈';
-
-    const fallback = ['🌀', '🧠', '⚙️', '🌐', '📁', '🔮', '🌱', '🎯', '📉', '🧭'];
-    return fallback[index % fallback.length];
-  };
-
-  const distillQuery = (input: string): string => {
-    return input
+  const distillQuery = (text: string): string => {
+    return text
       .toLowerCase()
       .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\b(the|and|of|for|in|to|a|our|we|is|are|that|this|on|at|with|by)\b/g, '')
+      .replace(/\b(the|and|of|for|in|to|a|our|we|is|are|that|this|on|at|with|by|as|it|be|from|an|will|can|may|must|should)\b/g, '')
       .split(/\s+/)
       .filter(Boolean)
-      .slice(0, 3)
+      .slice(0, 4)
       .join(',');
+  };
+
+  const fetchStockImage = (title: string, bullets: string[]): string => {
+    const content = `${title} ${bullets.slice(0, 2).join(' ')}`;
+    const distilled = distillQuery(content);
+    return `https://source.unsplash.com/800x800/?${distilled},corporate,business`;
   };
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
@@ -76,11 +65,6 @@ export default function PresentationBuilder() {
     }
   };
 
-  const fetchStockImage = (query: string): string => {
-    const distilled = distillQuery(query);
-    return `https://source.unsplash.com/800x800/?${distilled},corporate,business`;
-  };
-
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!prompt.trim()) return;
@@ -95,7 +79,7 @@ export default function PresentationBuilder() {
 
       for (const title of outline) {
         const content = await generateSlideContent(title);
-        const image = fetchStockImage(content.imagePrompt || title);
+        const image = fetchStockImage(title, content.bullets);
         const slide: Slide = { ...content, image };
         slideData.push(slide);
         setSlides([...slideData]);
@@ -152,18 +136,12 @@ export default function PresentationBuilder() {
               </ul>
             </div>
 
-            {/* Image pane with emoji placeholder */}
-            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center relative">
-              <div className="absolute text-6xl animate-pulse select-none pointer-events-none">
-                {getEmojiForSlide(slide?.title || '', current)}
-              </div>
+            {/* Image pane */}
+            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
               <img
                 src={slide?.image}
                 alt="Slide visual"
-                className="object-contain max-h-full opacity-0 transition-opacity duration-500"
-                onLoad={(e) => {
-                  e.currentTarget.classList.remove('opacity-0');
-                }}
+                className="object-contain max-h-full"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
