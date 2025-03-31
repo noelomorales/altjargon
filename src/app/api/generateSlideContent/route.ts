@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'ft:gpt-3.5-turbo-0125:personal:darkjargon-v2:BGvqNko8',
+        model: 'ft:gpt-3.5-turbo-0125:personal:darkjargon-v3:BH2et6n5',
         messages: [
           {
             role: 'system',
