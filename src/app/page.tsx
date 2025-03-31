@@ -1,7 +1,8 @@
-/* Safe fallback page.tsx
-   - Handles undefined SVG, notes, bullets, prompt
-   - Never crashes on missing fields
-   - Maintains glitch mode, speaker notes, SVG prompts
+/* Updated page.tsx
+   - No image on title slide
+   - Speaker notes for title generated after all slides
+   - SVG caption generated from slide + image
+   - 500 error fallback for missing content
 */
 
 'use client';
@@ -14,6 +15,7 @@ interface Slide {
   svg: string;
   notes: string;
   svgPrompt?: string;
+  caption?: string;
 }
 
 type Theme = 'clean' | 'dark';
@@ -109,6 +111,20 @@ export default function PresentationBuilder() {
     }
   };
 
+  const generateCaption = async (title: string, bullets: string[], svg: string): Promise<string> => {
+    try {
+      const res = await fetch('/api/generateSlideContent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: `Caption for SVG of ${title}:\n${bullets.join('\n')}\n${svg}` }),
+      });
+      const json = await res.json();
+      return json.bullets?.[0] || '';
+    } catch {
+      return '';
+    }
+  };
+
   const revealBullets = (index: number, total: number) => {
     setVisibleBullets((prev) => {
       const updated = [...prev];
@@ -144,13 +160,13 @@ export default function PresentationBuilder() {
           title: prompt,
           bullets: [`By ${author}`, today],
           svg: '',
-          notes: 'Title and metadata slide',
+          notes: '',
         },
         {
           title: 'Agenda',
           bullets: agendaBullets,
           svg: '',
-          notes: 'Overview of topics to be covered',
+          notes: '',
         },
       ];
 
@@ -162,11 +178,18 @@ export default function PresentationBuilder() {
         revealBullets(generatedSlides.length, filtered.length);
         const { svg, prompt: svgPrompt } = await generateSvg(title, filtered);
         const notes = await generateNotes(title, filtered);
-        const slide: Slide = { title, bullets: filtered, svg, notes, svgPrompt };
+        const caption = await generateCaption(title, filtered, svg);
+        const slide: Slide = { title, bullets: filtered, svg, notes, svgPrompt, caption };
         generatedSlides.push(slide);
         setSlides([...generatedSlides]);
         await new Promise((r) => setTimeout(r, 300));
       }
+
+      // update notes for title slide after
+      const titleNotes = await generateNotes(prompt, [`By ${author}`, today]);
+      const updated = [...generatedSlides];
+      updated[0].notes = titleNotes;
+      setSlides(updated);
     } catch (err) {
       console.error('[generateDeck error]', err);
       alert('Deck generation failed');
@@ -221,10 +244,10 @@ export default function PresentationBuilder() {
               </ul>
             </div>
             <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-              <div dangerouslySetInnerHTML={{ __html: slide.svg || '' }} />
-              {slide.svgPrompt && (
+              {current > 0 && slide.svg && <div dangerouslySetInnerHTML={{ __html: slide.svg }} />}
+              {current > 0 && slide.caption && (
                 <div className="text-xs text-gray-400 mt-2 italic whitespace-pre-wrap text-center">
-                  {slide.svgPrompt}
+                  {slide.caption}
                 </div>
               )}
             </div>
