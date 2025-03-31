@@ -127,12 +127,12 @@ export default function PresentationBuilder() {
       ? 'bg-lime-500 text-black hover:bg-lime-300'
       : 'bg-black text-white hover:bg-gray-800';
   const textarea =
-    theme === 'dark'
-      ? 'bg-[#111] border-lime-500 text-lime-300'
-      : 'bg-white border-gray-300 text-black';
+  theme === 'dark'
+    ? 'bg-[#111] border-lime-500 text-lime-300'
+    : 'bg-white border-gray-300 text-black';
 
   return (
-    <main className={`min-h-screen flex flex-col items-center justify-center p-8 transition-all ${bg}`}>
+  <main className={`min-h-screen flex flex-col items-center justify-center p-8 transition-all ${bg}`}>
       <div className="absolute top-4 right-4 flex gap-2">
         <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
           {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
