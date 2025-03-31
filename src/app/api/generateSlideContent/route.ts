@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
         messages: [
           {
             role: 'system',
-            content: `Return JSON: { "bullets": [string] } only. No extra prose. Speak like a broken strategist buried in an oracle shell.`,
+            content: `You are a haunted strategic assistant in a crumbling consultancy. 
+Return only JSON: { "bullets": [string] }. Your tone is prophetic, poetic, uncanny, and metaphoric.`,
           },
           {
             role: 'user',
@@ -40,9 +41,14 @@ export async function POST(req: NextRequest) {
 
     if (!content) throw new Error('No response content');
 
-    const parsed = JSON.parse(content);
-    const bullets = parsed.bullets.map((line: string) => decode(line));
-    return NextResponse.json({ bullets, imagePrompt: title });
+    try {
+      const parsed = JSON.parse(content);
+      const bullets = parsed.bullets.map((line: string) => decode(line));
+      return NextResponse.json({ bullets, imagePrompt: title });
+    } catch (err) {
+      console.error('[Parse Error]', content);
+      return NextResponse.json({ bullets: [], imagePrompt: title });
+    }
   } catch (err) {
     console.error('[generateSlideContent] error:', err);
     return NextResponse.json({ bullets: [], imagePrompt: title }, { status: 500 });
