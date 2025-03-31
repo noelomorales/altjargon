@@ -1,8 +1,3 @@
-/* Final page.tsx with fixed handleSubmit()
-   - Full deck generation including title/agenda
-   - Images, captions, notes, glitch mode
-*/
-
 'use client';
 
 import { useState } from 'react';
@@ -46,6 +41,21 @@ export default function PresentationBuilder() {
 
   const slide = slides[current] ?? {
     title: '', bullets: [], svg: '', notes: '', caption: '', type: 'normal',
+  };
+
+  const retrySlideContent = async (title: string, bullets: string[], suffix: string): Promise<string[]> => {
+    for (let i = 0; i < 3; i++) {
+      try {
+        const res = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `${title} ${suffix} \n ${bullets.join('\n')}` }),
+        });
+        const data = await res.json();
+        if (data?.bullets?.length) return data.bullets.map(decode);
+      } catch (err) {}
+    }
+    return ['(Failed to generate content)'];
   };
 
   const handleSubmit = async () => {
@@ -99,21 +109,8 @@ export default function PresentationBuilder() {
           }
         }
 
-        const captionRes = await fetch('/api/generateSlideContent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: `caption for: ${s.title} \n ${bullets.join('\n')}` }),
-        });
-        const captionData = await captionRes.json();
-        const caption = captionData?.bullets?.[0] || '';
-
-        const noteRes = await fetch('/api/generateSlideContent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: `${s.title} notes \n ${bullets.join('\n')}` }),
-        });
-        const notesData = await noteRes.json();
-        const notes = notesData?.bullets?.join(' ') || '';
+        const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
+        const notes = (await retrySlideContent(s.title, bullets, 'notes')).join(' ');
 
         allSlides.push({
           title: s.title,
