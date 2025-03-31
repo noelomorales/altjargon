@@ -20,7 +20,7 @@ Bullet points:
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
-      body: JSON.stringify({
+      body: JSON.stringify({ title, bullets, theme }),
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: 'You respond only with valid SVG markup.' },
