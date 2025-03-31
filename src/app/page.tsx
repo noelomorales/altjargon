@@ -19,13 +19,15 @@ export default function Home() {
     });
 
     const text = await res.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      console.error('[generateImage] JSON parse error:', text);
-      throw new Error('Invalid JSON returned from server');
-    }
+const isJSON = res.headers.get('content-type')?.includes('application/json');
+
+let data;
+try {
+  data = isJSON ? JSON.parse(text) : { error: 'non-JSON error', fallback: fallbackImageURL };
+} catch {
+  console.error('[generateImage] parse fail:', text);
+  data = { error: 'parse failed', fallback: fallbackImageURL };
+}
 
     if (!res.ok || !data.image) {
       console.warn('[generateImage] fallback image used');
