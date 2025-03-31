@@ -184,7 +184,12 @@ export default function PresentationBuilder() {
                 ))}
               </ul>
               <div
-                className="mt-4 w-full aspect-square bg-black p-2 flex items-center justify-center rounded border border-current"
+                <div
+  className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex items-center justify-center p-4 ${
+    theme === 'dark' ? 'bg-black' : 'bg-white'
+  }`}
+  dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
+/>
                 dangerouslySetInnerHTML={{ __html: s.svg || '' }}
               />
             </div>
