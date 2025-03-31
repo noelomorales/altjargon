@@ -15,23 +15,21 @@ Slide title: "${title}"
 Bullet points:
 - ${bullets.join('\n- ')}`;
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({ title, bullets, theme }),
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: 'You respond only with valid SVG markup.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.8,
-      }),
-    });
-
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+  },
+  body: JSON.stringify({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: 'You respond only with valid SVG markup.' },
+      { role: 'user', content: prompt },
+    ],
+    temperature: 0.8,
+  }),
+});
     const data = await response.json();
     const svg = data.choices?.[0]?.message?.content || '';
     return NextResponse.json({ svg });
