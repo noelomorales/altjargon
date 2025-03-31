@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const data = await req.json();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const fileName = `deck-${timestamp}.json`;
-  const savePath = path.join(process.cwd(), 'public', 'saved');
+  const savePath = path.join(process.cwd(), 'src', 'data', 'savedDecks');
 
   try {
     await mkdir(savePath, { recursive: true });
