@@ -191,7 +191,7 @@ export default function PresentationBuilder() {
           ))}
         </div>
       ) : (
-        <div className={`w-full max-w-[90rem] h-[85vh] rounded-2xl p-10 flex flex-col ${card}`}>
+        <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 flex flex-col ${card}`}>
           <div className="flex-1 flex gap-8">
             <div className="flex-1 flex flex-col">
               <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
