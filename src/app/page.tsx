@@ -8,12 +8,14 @@ interface Slide {
   svg: string;
 }
 
+type Theme = 'clean' | 'dark';
+
 export default function PresentationBuilder() {
   const [prompt, setPrompt] = useState('');
   const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const [darkMode, setDarkMode] = useState(true); // default ON
+  const [theme, setTheme] = useState<Theme>('clean');
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
     const res = await fetch('/api/generateOutline', {
@@ -99,29 +101,41 @@ export default function PresentationBuilder() {
     }
   };
 
-  const bg = darkMode ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
-  const card = darkMode
-    ? 'bg-[#111] border border-lime-500 text-lime-200 shadow-[0_0_12px_#0f0]'
-    : 'bg-white border border-gray-200 text-black shadow-xl';
-
-  const button = darkMode
-    ? 'bg-lime-500 text-black hover:bg-lime-300'
-    : 'bg-black text-white hover:bg-gray-800';
+  const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
+  const card =
+    theme === 'dark'
+      ? 'bg-[#111] border border-lime-500 text-lime-200 shadow-[0_0_12px_#0f0]'
+      : 'bg-white border border-gray-200 text-black shadow-xl';
+  const button =
+    theme === 'dark'
+      ? 'bg-lime-500 text-black hover:bg-lime-300'
+      : 'bg-black text-white hover:bg-gray-800';
+  const textarea =
+    theme === 'dark'
+      ? 'bg-[#111] border-lime-500 text-lime-300'
+      : 'bg-white border-gray-300 text-black';
 
   return (
     <main className={`min-h-screen flex items-center justify-center p-8 transition-all ${bg}`}>
-      <div className="absolute top-4 right-4">
+      <style jsx global>{`
+        ::selection {
+          background: ${theme === 'dark' ? '#39ff14' : '#000'};
+          color: ${theme === 'dark' ? '#000' : '#fff'};
+        }
+      `}</style>
+
+      <div className="absolute top-4 right-4 flex gap-2">
         <button
-          onClick={() => setDarkMode(!darkMode)}
-          className={`text-sm px-3 py-1 rounded ${button}`}
+          onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')}
+          className={`text-sm px-3 py-1 rounded transition ${button}`}
         >
-          {darkMode ? '☀ Light Mode' : '🕳️ Dark Mode'}
+          {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
         </button>
       </div>
 
       {slides.length === 0 ? (
         <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
-          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-lime-400' : 'text-gray-800'}`}>
+          <h1 className={`text-2xl font-semibold ${theme === 'dark' ? 'text-lime-400' : 'text-gray-800'}`}>
             Generate a Slide Deck
           </h1>
           <textarea
@@ -129,11 +143,7 @@ export default function PresentationBuilder() {
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. AI startup pitch for logistics"
-            className={`w-full p-4 rounded-md border ${
-              darkMode
-                ? 'bg-[#111] border-lime-500 text-lime-300'
-                : 'bg-white border-gray-300 text-black'
-            } focus:outline-none focus:ring-2 focus:ring-blue-400`}
+            className={`w-full p-4 rounded-md border ${textarea} focus:outline-none focus:ring-2 focus:ring-blue-400`}
             rows={4}
           />
           <button
@@ -149,9 +159,7 @@ export default function PresentationBuilder() {
           <div className="flex-1 flex">
             {/* Slide content */}
             <div className="flex-1 flex flex-col pr-8">
-              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">
-                {slide?.title}
-              </h2>
+              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
                 {slide?.bullets.map((point, i) => (
                   <li key={i}>{point}</li>
@@ -161,7 +169,9 @@ export default function PresentationBuilder() {
 
             {/* SVG panel */}
             <div
-              className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black text-white flex items-center justify-center p-2"
+              className={`w-[40%] h-full overflow-hidden rounded-xl border border-current ${
+                theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black'
+              } flex items-center justify-center p-2`}
               dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
             />
           </div>
