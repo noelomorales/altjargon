@@ -10,23 +10,14 @@ export default function Home() {
 
   async function generateImage(prompt: string): Promise<string | null> {
     try {
-      const res = await fetch('https://api.openai.com/v1/images/generations', {
+      const res = await fetch('/api/generateImage', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'dall-e-3',
-          prompt,
-          n: 1,
-          size: '1024x1024',
-          response_format: 'url',
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
       });
 
       const data = await res.json();
-      return data?.data?.[0]?.url || null;
+      return data?.image || null;
     } catch (err) {
       console.error('Image generation failed:', err);
       return null;
@@ -46,7 +37,7 @@ export default function Home() {
       });
 
       const data = await res.json();
-      setBullets(data.bullets);
+      setBullets(data.bullets || []);
 
       const imageUrl = await generateImage(data.imagePrompt);
       setImage(imageUrl || '');
@@ -70,16 +61,13 @@ export default function Home() {
               className="text-4xl font-bold mb-6 w-full border-b border-gray-300 focus:outline-none focus:border-blue-400"
             />
           </form>
-          {loading ? (
-            <p className="text-gray-500 text-sm">Loading...</p>
-          ) : (
-            {Array.isArray(bullets) && bullets.length > 0 && (
-  <ul className="list-disc pl-6 space-y-2 text-lg">
-    {bullets.map((point, i) => (
-      <li key={i}>{point}</li>
-    ))}
-  </ul>
-)}
+          {loading && <p className="text-gray-500 text-sm">Loading...</p>}
+          {!loading && Array.isArray(bullets) && bullets.length > 0 && (
+            <ul className="list-disc pl-6 space-y-2 text-lg">
+              {bullets.map((point, i) => (
+                <li key={i}>{point}</li>
+              ))}
+            </ul>
           )}
         </div>
         <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
