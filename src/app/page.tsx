@@ -1,11 +1,12 @@
 /* Full updated page.tsx input form with:
    - Enter to submit (Shift+Enter for newline)
    - Button shows "Generating..." while loading
+   - Full generation flow restored
 */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Slide {
   title: string;
@@ -15,22 +16,66 @@ interface Slide {
 }
 
 type Theme = 'clean' | 'dark';
-type ViewMode = 'single' | 'grid';
 
 export default function PresentationBuilder() {
   const [prompt, setPrompt] = useState('');
   const [slides, setSlides] = useState<Slide[]>([]);
   const [generating, setGenerating] = useState(false);
   const [theme, setTheme] = useState<Theme>('clean');
+
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
   const textarea = theme === 'dark' ? 'bg-[#111] border-lime-500 text-lime-300' : 'bg-white border-gray-300 text-black';
 
+  const decode = (str: string) =>
+    str.replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+
+  const generateOutline = async (prompt: string): Promise<string[]> => {
+    const res = await fetch('/api/generateOutline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await res.json();
+    return data.slides || [];
+  };
+
+  const generateSlideContent = async (title: string): Promise<{ bullets: string[] }> => {
+    const res = await fetch('/api/generateSlideContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const text = await res.text();
+    const isJSON = res.headers.get('content-type')?.includes('application/json');
+    const data = isJSON ? JSON.parse(text) : { bullets: [] };
+    return { bullets: data.bullets.map(decode) || [] };
+  };
+
   const handleSubmit = async () => {
     if (!prompt.trim()) return;
     setGenerating(true);
-    // your generation logic here
-    setTimeout(() => setGenerating(false), 3000); // remove after implementing real logic
+    setSlides([]);
+
+    try {
+      const outline = await generateOutline(prompt);
+      const generatedSlides: Slide[] = [];
+
+      for (const title of outline) {
+        const { bullets } = await generateSlideContent(title);
+        generatedSlides.push({ title, bullets, svg: '', notes: '' });
+      }
+
+      setSlides(generatedSlides);
+    } catch (err) {
+      console.error(err);
+    }
+
+    setGenerating(false);
   };
 
   return (
