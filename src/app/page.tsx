@@ -72,7 +72,7 @@ export default function Home() {
         </div>
         <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
   <img
-    src={image || 'https://upload.wikimedia.org/wikipedia/commons/3/3f/Black_hole_-_Messier_87_crop_max_res.jpg'}
+    src={image || 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg'}
     alt="Slide visual"
     className="object-contain max-h-full"
   />
