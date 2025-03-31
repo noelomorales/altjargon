@@ -7,8 +7,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(_: NextRequest) {
   try {
     const folder = path.join(process.cwd(), 'public', 'saved');
-    await mkdir(folder, { recursive: true });
+    await mkdir(folder, { recursive: true }); // ensure it exists
     const files = await readdir(folder);
+
     const decks = await Promise.all(
       files
         .filter((file) => file.endsWith('.json'))
@@ -20,6 +21,7 @@ export async function GET(_: NextRequest) {
           };
         })
     );
+
     return NextResponse.json({ decks });
   } catch (err) {
     console.error('[savedDecks GET] error:', err);
