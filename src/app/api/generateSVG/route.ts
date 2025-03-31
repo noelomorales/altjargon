@@ -5,9 +5,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const { title, bullets } = await req.json();
+  const { title, bullets, theme } = await req.json();
+const background = theme === 'dark' ? 'black' : 'white';
+const foreground = theme === 'dark' ? 'neon green, purple, or cyan' : 'navy, gray, or muted blue';
 
-  const prompt = `You are a designer who creates poetic, minimalist SVG visuals to represent abstract ideas. Given a slide title and bullet points, return a single <svg>...</svg> element that visually represents the concept in a metaphorical or symbolic way. Avoid text. Use black background with neon green, purple, or cyan strokes. Keep it under 20KB. Return only valid SVG.
+  const prompt = `You are a designer who creates poetic, minimalist SVG visuals to represent abstract ideas. Given a slide title and bullet points, return a single <svg>...</svg> element that visually represents the concept in a metaphorical or symbolic way. Avoid text. Keep it under 20KB. Return only valid SVG.
 
 Slide title: "${title}"
 Bullet points:
