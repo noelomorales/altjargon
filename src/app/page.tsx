@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Slide {
   title: string;
@@ -18,6 +18,15 @@ export default function PresentationBuilder() {
   const [generating, setGenerating] = useState(false);
   const [theme, setTheme] = useState<Theme>('clean');
   const [view, setView] = useState<ViewMode>('single');
+  const [savedDecks, setSavedDecks] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/savedDecks')
+      .then((res) => res.json())
+      .then((data) => {
+        setSavedDecks(data.decks || []);
+      });
+  }, []);
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
     const res = await fetch('/api/generateOutline', {
@@ -109,21 +118,6 @@ export default function PresentationBuilder() {
     }
   };
 
-  const handleLoad = async () => {
-    const res = await fetch('/api/savedDecks');
-    const data = await res.json();
-    if (!data.decks?.length) return alert('No saved decks found.');
-    const names = data.decks.map((d: any, i: number) => `${i + 1}. ${d.name}`).join('\n');
-    const selected = prompt(`Pick a deck:\n${names}`);
-    const index = parseInt(selected || '', 10) - 1;
-    if (data.decks[index]) {
-      setSlides(data.decks[index].data.slides || []);
-      setPrompt(data.decks[index].data.prompt || '');
-      setView('single');
-      setCurrent(0);
-    }
-  };
-
   const slide = slides[current];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -168,8 +162,28 @@ export default function PresentationBuilder() {
             <button onClick={handleSave} className={`px-3 py-1 text-sm rounded ${button}`}>💾 Save Deck</button>
           </>
         )}
-        {slides.length === 0 && (
-          <button onClick={handleLoad} className={`px-3 py-1 text-sm rounded ${button}`}>📂 Load Deck</button>
+        {savedDecks.length > 0 && slides.length === 0 && (
+          <select
+            onChange={(e) => {
+              const index = parseInt(e.target.value, 10);
+              const deck = savedDecks[index];
+              if (deck) {
+                setSlides(deck.data.slides);
+                setPrompt(deck.data.prompt);
+                setView('single');
+                setCurrent(0);
+              }
+            }}
+            className={`text-sm px-3 py-1 rounded ${button}`}
+            defaultValue=""
+          >
+            <option value="" disabled>📂 Load Deck</option>
+            {savedDecks.map((deck, i) => (
+              <option key={i} value={i}>
+                {deck.name}
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
