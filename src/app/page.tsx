@@ -10,23 +10,27 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  async function generateImage(prompt: string): Promise<string | null> {
-    try {
-      const res = await fetch('/api/generateImage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
+  async function generateImage(prompt: string): Promise<string> {
+  try {
+    const res = await fetch('/api/generateImage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
 
-      const data = await res.json();
-      if (!data.image) throw new Error('Image generation failed');
-      return data.image;
-    } catch (err) {
-      console.error('Image generation failed:', err);
-      setImageError(true);
-      return null;
+    const data = await res.json();
+
+    if (!res.ok || !data.image) {
+      console.warn('[generateImage] fallback image used');
+      return data.fallback || 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
     }
+
+    return data.image;
+  } catch (err) {
+    console.error('Image generation failed:', err);
+    return 'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
   }
+}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
