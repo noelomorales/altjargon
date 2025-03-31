@@ -14,7 +14,10 @@ export async function POST(req: NextRequest) {
     ? 'neon green, purple, or cyan'
     : 'navy, gray, or muted blue';
 
-  const prompt = `You are a designer who creates poetic, minimalist SVG visuals. Return a single <svg>...</svg> that visually represents the slide's concept metaphorically. Avoid text. Use a ${background} background and ${stroke} strokes. Keep SVG under 20KB.
+  const prompt = `You are a designer who creates poetic, minimalist SVG visuals. 
+Return a single <svg>...</svg> that metaphorically represents the slide’s concept. Avoid text. 
+Use a ${background} background and ${stroke} strokes. 
+Make the SVG large (minimum 400x400). Keep it under 20KB. Return only valid SVG.
 
 Slide title: "${title}"
 Bullet points:
@@ -34,7 +37,7 @@ Bullet points:
         body: JSON.stringify({
           model: 'gpt-4o',
           messages: [
-            { role: 'system', content: 'Respond with valid SVG only.' },
+            { role: 'system', content: 'Respond with valid SVG only. No commentary or prose.' },
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
@@ -48,8 +51,8 @@ Bullet points:
 
       store.set(id, { status: 'done', svg });
     } catch (err) {
-      store.set(id, { status: 'done', svg: '' });
       console.error('[generateSVG async] error:', err);
+      store.set(id, { status: 'done', svg: '' });
     }
   }, 50);
 
