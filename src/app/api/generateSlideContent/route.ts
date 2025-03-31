@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
     });
 
     const bulletData = await bulletRes.json();
-    const parsed = JSON.parse(bulletData.choices[0].message.content);
+    const content = bulletData.choices?.[0]?.message?.content;
+if (!content) throw new Error('Missing assistant response');
+const parsed = JSON.parse(content);
     const bullets: string[] = parsed.bullets;
 
     const imagePrompt = `Create a surreal conceptual illustration based on the title "${title}" and the following phrases:\n\n- ${bullets.join('\n- ')}\n\nThe image should feel poetic, abstract, and metaphorical.`;
