@@ -35,15 +35,10 @@ export default function PresentationBuilder() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title }),
     });
-
     const text = await res.text();
     const isJSON = res.headers.get('content-type')?.includes('application/json');
     const data = isJSON ? JSON.parse(text) : { bullets: [] };
-
-    return {
-      title,
-      bullets: data.bullets || [],
-    };
+    return { title, bullets: data.bullets || [] };
   };
 
   const generateSvg = async (title: string, bullets: string[]): Promise<string> => {
@@ -51,11 +46,23 @@ export default function PresentationBuilder() {
       const res = await fetch('/api/generateSVG', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, bullets }),
+        body: JSON.stringify({ title, bullets, theme }),
       });
-      const data = await res.json();
-      const raw = data.svg || '';
-      return raw.replace(/```svg\n?|\n?```/g, '').trim();
+      const { id } = await res.json();
+      if (!id) throw new Error('No SVG ID returned');
+      for (let i = 0; i < 10; i++) {
+        await new Promise((res) => setTimeout(res, 2000));
+        const poll = await fetch(`/api/generateSVG?id=${id}`);
+        if (!poll.ok) continue;
+        const text = await poll.text();
+        try {
+          const json = JSON.parse(text);
+          if (json.status === 'done') return json.svg || '';
+        } catch {
+          console.warn('[generateSVG] invalid JSON:', text);
+        }
+      }
+      throw new Error('SVG polling timeout');
     } catch (err) {
       console.error('[generateSVG] failed:', err);
       return '';
@@ -65,7 +72,6 @@ export default function PresentationBuilder() {
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!prompt.trim()) return;
-
     setGenerating(true);
     setSlides([]);
     setCurrent(0);
@@ -80,11 +86,10 @@ export default function PresentationBuilder() {
         const slide: Slide = { title, bullets: content.bullets, svg };
         slideData.push(slide);
         setSlides([...slideData]);
-        await new Promise((res) => setTimeout(res, 300));
+        await new Promise((r) => setTimeout(r, 300));
       }
     } catch (err) {
-      alert('Failed to generate deck');
-      console.error(err);
+      alert('Deck generation failed');
     }
 
     setGenerating(false);
@@ -98,13 +103,24 @@ export default function PresentationBuilder() {
         body: JSON.stringify({ prompt, slides }),
       });
       const data = await res.json();
-      if (data.success) {
-        alert(`Deck saved to: ${data.file}`);
-      } else {
-        alert('Save failed');
-      }
-    } catch (err) {
+      alert(data.success ? `Saved to ${data.file}` : 'Save failed');
+    } catch {
       alert('Save failed');
+    }
+  };
+
+  const handleLoad = async () => {
+    const res = await fetch('/api/savedDecks');
+    const data = await res.json();
+    if (!data.decks?.length) return alert('No saved decks found.');
+    const names = data.decks.map((d: any, i: number) => `${i + 1}. ${d.name}`).join('\n');
+    const selected = prompt(`Pick a deck:\n${names}`);
+    const index = parseInt(selected || '', 10) - 1;
+    if (data.decks[index]) {
+      setSlides(data.decks[index].data.slides || []);
+      setPrompt(data.decks[index].data.prompt || '');
+      setView('single');
+      setCurrent(0);
     }
   };
 
@@ -127,12 +143,19 @@ export default function PresentationBuilder() {
       ? 'bg-lime-500 text-black hover:bg-lime-300'
       : 'bg-black text-white hover:bg-gray-800';
   const textarea =
-  theme === 'dark'
-    ? 'bg-[#111] border-lime-500 text-lime-300'
-    : 'bg-white border-gray-300 text-black';
+    theme === 'dark'
+      ? 'bg-[#111] border-lime-500 text-lime-300'
+      : 'bg-white border-gray-300 text-black';
 
   return (
-  <main className={`min-h-screen flex flex-col items-center justify-center p-8 transition-all ${bg}`}>
+    <main className={`min-h-screen flex flex-col items-center justify-center p-8 transition-all ${bg}`}>
+      <style jsx global>{`
+        ::selection {
+          background: ${theme === 'dark' ? '#39ff14' : '#000'};
+          color: ${theme === 'dark' ? '#000' : '#fff'};
+        }
+      `}</style>
+
       <div className="absolute top-4 right-4 flex gap-2">
         <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
           {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
@@ -142,10 +165,11 @@ export default function PresentationBuilder() {
             <button onClick={() => setView(view === 'single' ? 'grid' : 'single')} className={`px-3 py-1 text-sm rounded ${button}`}>
               {view === 'single' ? '🗂 View All' : '🔍 View One'}
             </button>
-            <button onClick={handleSave} className={`px-3 py-1 text-sm rounded ${button}`}>
-              💾 Save Deck
-            </button>
+            <button onClick={handleSave} className={`px-3 py-1 text-sm rounded ${button}`}>💾 Save Deck</button>
           </>
+        )}
+        {slides.length === 0 && (
+          <button onClick={handleLoad} className={`px-3 py-1 text-sm rounded ${button}`}>📂 Load Deck</button>
         )}
       </div>
 
@@ -169,29 +193,10 @@ export default function PresentationBuilder() {
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-[90rem] mt-8">
           {slides.map((s, i) => (
-            <div
-              key={i}
-              onClick={() => {
-                setCurrent(i);
-                setView('single');
-              }}
-              className={`cursor-pointer p-4 rounded-xl ${card}`}
-            >
+            <div key={i} onClick={() => { setCurrent(i); setView('single'); }} className={`cursor-pointer p-4 rounded-xl ${card}`}>
               <h2 className="text-xl font-bold mb-2">{s.title}</h2>
-              <ul className="text-sm list-disc pl-4 space-y-1">
-                {s.bullets.map((pt, j) => (
-                  <li key={j}>{pt}</li>
-                ))}
-              </ul>
-              <div
-                <div
-  className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex items-center justify-center p-4 ${
-    theme === 'dark' ? 'bg-black' : 'bg-white'
-  }`}
-  dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
-/>
-                dangerouslySetInnerHTML={{ __html: s.svg || '' }}
-              />
+              <ul className="text-sm list-disc pl-4 space-y-1">{s.bullets.map((pt, j) => <li key={j}>{pt}</li>)}</ul>
+              <div className="mt-4 w-full aspect-square bg-black p-2 flex items-center justify-center rounded border border-current" dangerouslySetInnerHTML={{ __html: s.svg || '' }} />
             </div>
           ))}
         </div>
@@ -201,26 +206,15 @@ export default function PresentationBuilder() {
             <div className="flex-1 flex flex-col">
               <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
-                {slide?.bullets.map((point, i) => (
-                  <li key={i}>{point}</li>
-                ))}
+                {slide?.bullets.map((point, i) => <li key={i}>{point}</li>)}
               </ul>
             </div>
-            <div
-              className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black flex items-center justify-center p-4"
-              dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
-            />
+            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black flex items-center justify-center p-4" dangerouslySetInnerHTML={{ __html: slide?.svg || '' }} />
           </div>
           <div className="flex justify-between items-center mt-6">
-            <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">
-              ◀ Previous
-            </button>
-            <div className="text-sm opacity-60">
-              Slide {current + 1} of {slides.length}
-            </div>
-            <button disabled={current === slides.length - 1} onClick={() => setCurrent((i) => i + 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">
-              Next ▶
-            </button>
+            <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
+            <div className="text-sm opacity-60">Slide {current + 1} of {slides.length}</div>
+            <button disabled={current === slides.length - 1} onClick={() => setCurrent((i) => i + 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next ▶</button>
           </div>
         </div>
       )}
