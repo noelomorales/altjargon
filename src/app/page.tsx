@@ -15,8 +15,20 @@ export default function PresentationBuilder() {
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
 
-  const fallbackImage =
-    'https://upload.wikimedia.org/wikipedia/commons/4/4f/Black_hole_-_Messier_87_crop_max_res.jpg';
+  const getEmojiForSlide = (title: string): string => {
+    const keyword = title.toLowerCase();
+    if (keyword.includes('team')) return '👥';
+    if (keyword.includes('problem')) return '❗';
+    if (keyword.includes('solution')) return '💡';
+    if (keyword.includes('product')) return '📦';
+    if (keyword.includes('market')) return '📊';
+    if (keyword.includes('vision')) return '🔭';
+    if (keyword.includes('finance') || keyword.includes('money')) return '💰';
+    if (keyword.includes('goal') || keyword.includes('objective')) return '🎯';
+    if (keyword.includes('timeline') || keyword.includes('schedule')) return '🗓️';
+    if (keyword.includes('improvement') || keyword.includes('growth')) return '📈';
+    return '🌀';
+  };
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
     const res = await fetch('/api/generateOutline', {
@@ -127,12 +139,21 @@ export default function PresentationBuilder() {
               </ul>
             </div>
 
-            {/* Image pane */}
-            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center">
+            {/* Image pane with emoji placeholder */}
+            <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center relative">
+              <div className="absolute text-6xl animate-pulse select-none pointer-events-none">
+                {getEmojiForSlide(slide?.title || '')}
+              </div>
               <img
-                src={slide?.image || fallbackImage}
+                src={slide?.image}
                 alt="Slide visual"
-                className="object-contain max-h-full"
+                className="object-contain max-h-full opacity-0 transition-opacity duration-500"
+                onLoad={(e) => {
+                  e.currentTarget.classList.remove('opacity-0');
+                }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
           </div>
