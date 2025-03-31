@@ -15,7 +15,7 @@ export default function PresentationBuilder() {
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
 
-  const getEmojiForSlide = (title: string): string => {
+  const getEmojiForSlide = (title: string, index: number): string => {
     const keyword = title.toLowerCase();
     if (keyword.includes('team')) return '👥';
     if (keyword.includes('problem')) return '❗';
@@ -26,8 +26,21 @@ export default function PresentationBuilder() {
     if (keyword.includes('finance') || keyword.includes('money')) return '💰';
     if (keyword.includes('goal') || keyword.includes('objective')) return '🎯';
     if (keyword.includes('timeline') || keyword.includes('schedule')) return '🗓️';
-    if (keyword.includes('improvement') || keyword.includes('growth')) return '📈';
-    return '🌀';
+    if (keyword.includes('growth') || keyword.includes('traction')) return '📈';
+
+    const fallback = ['🌀', '🧠', '⚙️', '🌐', '📁', '🔮', '🌱', '🎯', '📉', '🧭'];
+    return fallback[index % fallback.length];
+  };
+
+  const distillQuery = (input: string): string => {
+    return input
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .replace(/\b(the|and|of|for|in|to|a|our|we|is|are|that|this|on|at|with|by)\b/g, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(',');
   };
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
@@ -64,8 +77,8 @@ export default function PresentationBuilder() {
   };
 
   const fetchStockImage = (query: string): string => {
-    const safeQuery = encodeURIComponent(query.split(' ').slice(0, 4).join(' '));
-    return `https://source.unsplash.com/800x800/?${safeQuery},corporate,business`;
+    const distilled = distillQuery(query);
+    return `https://source.unsplash.com/800x800/?${distilled},corporate,business`;
   };
 
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -86,7 +99,7 @@ export default function PresentationBuilder() {
         const slide: Slide = { ...content, image };
         slideData.push(slide);
         setSlides([...slideData]);
-        await new Promise((res) => setTimeout(res, 300)); // throttle
+        await new Promise((res) => setTimeout(res, 300));
       }
     } catch (err) {
       alert('Failed to generate deck');
@@ -142,7 +155,7 @@ export default function PresentationBuilder() {
             {/* Image pane with emoji placeholder */}
             <div className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center relative">
               <div className="absolute text-6xl animate-pulse select-none pointer-events-none">
-                {getEmojiForSlide(slide?.title || '')}
+                {getEmojiForSlide(slide?.title || '', current)}
               </div>
               <img
                 src={slide?.image}
