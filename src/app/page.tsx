@@ -1,8 +1,7 @@
 /* Full updated page.tsx with:
-   - Prompt -> Outline -> Bullets -> SVG -> Notes
-   - Animated bullet reveal
-   - SVG visual generation with polling + retry
-   - Editable, collapsible, monospace speaker notes
+   - Generating UI hidden after slides load
+   - All slides rendered with current slide navigation
+   - SVG + bullet + speaker notes generation preserved
 */
 
 'use client';
@@ -21,6 +20,7 @@ type Theme = 'clean' | 'dark';
 export default function PresentationBuilder() {
   const [prompt, setPrompt] = useState('');
   const [slides, setSlides] = useState<Slide[]>([]);
+  const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [theme, setTheme] = useState<Theme>('clean');
   const [visibleBullets, setVisibleBullets] = useState<number[]>([]);
@@ -120,6 +120,7 @@ export default function PresentationBuilder() {
     setGenerating(true);
     setSlides([]);
     setVisibleBullets([]);
+    setCurrent(0);
 
     try {
       const outline = await generateOutline(prompt);
@@ -142,7 +143,7 @@ export default function PresentationBuilder() {
     setGenerating(false);
   };
 
-  const slide = slides[0];
+  const slide = slides[current];
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
@@ -150,25 +151,33 @@ export default function PresentationBuilder() {
 
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg}`}>
-      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="w-full max-w-xl space-y-4">
-        <h1 className={`text-2xl font-semibold ${theme === 'dark' ? 'text-lime-400' : 'text-gray-800'}`}>Generate a Slide Deck</h1>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSubmit();
-            }
-          }}
-          placeholder="e.g. AI startup pitch for logistics"
-          className={`w-full p-4 rounded-md border focus:outline-none ${textarea}`}
-          rows={4}
-        />
-        <button type="submit" disabled={generating} className={`px-6 py-2 rounded ${button}`}>
-          {generating ? 'Generating…' : 'Generate Deck'}
+      <div className="absolute top-4 right-4 flex gap-2">
+        <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
+          {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
         </button>
-      </form>
+      </div>
+
+      {slides.length === 0 && (
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="w-full max-w-xl space-y-4">
+          <h1 className={`text-2xl font-semibold ${theme === 'dark' ? 'text-lime-400' : 'text-gray-800'}`}>Generate a Slide Deck</h1>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder="e.g. AI startup pitch for logistics"
+            className={`w-full p-4 rounded-md border focus:outline-none ${textarea}`}
+            rows={4}
+          />
+          <button type="submit" disabled={generating} className={`px-6 py-2 rounded ${button}`}>
+            {generating ? 'Generating…' : 'Generate Deck'}
+          </button>
+        </form>
+      )}
 
       {slides.length > 0 && (
         <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 mt-8 flex flex-col ${card}`}>
@@ -176,7 +185,7 @@ export default function PresentationBuilder() {
             <div className="flex-1 flex flex-col">
               <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
-                {slide?.bullets.slice(0, visibleBullets[0] || 0).map((point, i) => <li key={i}>{point}</li>)}
+                {slide?.bullets.slice(0, visibleBullets[current] || 0).map((point, i) => <li key={i}>{point}</li>)}
               </ul>
             </div>
             <div
@@ -193,12 +202,17 @@ export default function PresentationBuilder() {
                 value={slide?.notes}
                 onChange={(e) => {
                   const updated = [...slides];
-                  updated[0].notes = e.target.value;
+                  updated[current].notes = e.target.value;
                   setSlides(updated);
                 }}
                 className="w-full bg-transparent font-mono border border-current rounded p-2 mt-1 text-xs resize-none h-32"
               />
             )}
+          </div>
+          <div className="flex justify-between items-center mt-4">
+            <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
+            <div className="text-sm opacity-60">Slide {current + 1} of {slides.length}</div>
+            <button disabled={current === slides.length - 1} onClick={() => setCurrent((i) => i + 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next ▶</button>
           </div>
         </div>
       )}
