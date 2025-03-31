@@ -1,7 +1,8 @@
-/* Full updated page.tsx with:
-   - Generating UI hidden after slides load
-   - All slides rendered with current slide navigation
-   - SVG + bullet + speaker notes generation preserved
+/* Updated page.tsx
+   - Inserts dynamic title slide with byline + date
+   - Generates shortened agenda from outline
+   - Richer bullet text (no "slide" references)
+   - Improved Helvetica-like styling and spacing
 */
 
 'use client';
@@ -32,6 +33,8 @@ export default function PresentationBuilder() {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
+
+  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
     const res = await fetch('/api/generateOutline', {
@@ -124,16 +127,36 @@ export default function PresentationBuilder() {
 
     try {
       const outline = await generateOutline(prompt);
-      const slideData: Slide[] = [];
+
+      const agendaBullets = outline.slice(0, 6).map(title => title.replace(/^\d+\.\s*/, ''));
+      const author = 'J. Foresight'; // Ideally generated from model
+
+      const frontMatter: Slide[] = [
+        {
+          title: prompt,
+          bullets: [`By ${author}`, today],
+          svg: '',
+          notes: 'Title and metadata slide',
+        },
+        {
+          title: 'Agenda',
+          bullets: agendaBullets,
+          svg: '',
+          notes: 'Overview of topics to be covered',
+        },
+      ];
+
+      const generatedSlides: Slide[] = [...frontMatter];
 
       for (const title of outline) {
         const { bullets } = await generateSlideContent(title);
-        revealBullets(slideData.length, bullets.length);
-        const svg = await generateSvg(title, bullets);
-        const notes = await generateNotes(title, bullets);
-        const slide: Slide = { title, bullets, svg, notes };
-        slideData.push(slide);
-        setSlides([...slideData]);
+        const filtered = bullets.map(b => b.replace(/^.*\b[Ss]lide\b.*?:?\s*/, ''));
+        revealBullets(generatedSlides.length, filtered.length);
+        const svg = await generateSvg(title, filtered);
+        const notes = await generateNotes(title, filtered);
+        const slide: Slide = { title, bullets: filtered, svg, notes };
+        generatedSlides.push(slide);
+        setSlides([...generatedSlides]);
         await new Promise((r) => setTimeout(r, 300));
       }
     } catch (err) {
@@ -150,7 +173,7 @@ export default function PresentationBuilder() {
   const textarea = theme === 'dark' ? 'bg-[#111] border-lime-500 text-lime-300' : 'bg-white border-gray-300 text-black';
 
   return (
-    <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg}`}>
+    <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg} font-sans`}>
       <div className="absolute top-4 right-4 flex gap-2">
         <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
           {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
@@ -159,7 +182,7 @@ export default function PresentationBuilder() {
 
       {slides.length === 0 && (
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="w-full max-w-xl space-y-4">
-          <h1 className={`text-2xl font-semibold ${theme === 'dark' ? 'text-lime-400' : 'text-gray-800'}`}>Generate a Slide Deck</h1>
+          <h1 className="text-3xl font-bold leading-snug tracking-tight">Generate a Slide Deck</h1>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -170,10 +193,10 @@ export default function PresentationBuilder() {
               }
             }}
             placeholder="e.g. AI startup pitch for logistics"
-            className={`w-full p-4 rounded-md border focus:outline-none ${textarea}`}
+            className={`w-full p-4 rounded-md border focus:outline-none text-lg ${textarea}`}
             rows={4}
           />
-          <button type="submit" disabled={generating} className={`px-6 py-2 rounded ${button}`}>
+          <button type="submit" disabled={generating} className={`px-6 py-2 rounded text-lg ${button}`}>
             {generating ? 'Generating…' : 'Generate Deck'}
           </button>
         </form>
@@ -183,8 +206,8 @@ export default function PresentationBuilder() {
         <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 mt-8 flex flex-col ${card}`}>
           <div className="flex-1 flex gap-8">
             <div className="flex-1 flex flex-col">
-              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">{slide?.title}</h2>
-              <ul className="list-disc pl-6 space-y-2 text-lg">
+              <h2 className="text-4xl font-bold mb-6 border-b pb-3 border-current leading-tight tracking-tight">{slide?.title}</h2>
+              <ul className="list-disc pl-6 space-y-3 text-xl">
                 {slide?.bullets.slice(0, visibleBullets[current] || 0).map((point, i) => <li key={i}>{point}</li>)}
               </ul>
             </div>
@@ -205,14 +228,14 @@ export default function PresentationBuilder() {
                   updated[current].notes = e.target.value;
                   setSlides(updated);
                 }}
-                className="w-full bg-transparent font-mono border border-current rounded p-2 mt-1 text-xs resize-none h-32"
+                className="w-full bg-transparent font-mono border border-current rounded p-2 mt-1 text-sm resize-none h-32"
               />
             )}
           </div>
           <div className="flex justify-between items-center mt-4">
-            <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
-            <div className="text-sm opacity-60">Slide {current + 1} of {slides.length}</div>
-            <button disabled={current === slides.length - 1} onClick={() => setCurrent((i) => i + 1)} className="text-sm px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next ▶</button>
+            <button disabled={current === 0} onClick={() => setCurrent((i) => i - 1)} className="text-base px-3 py-1 bg-gray-200 rounded disabled:opacity-50">◀ Previous</button>
+            <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
+            <button disabled={current === slides.length - 1} onClick={() => setCurrent((i) => i + 1)} className="text-base px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next ▶</button>
           </div>
         </div>
       )}
