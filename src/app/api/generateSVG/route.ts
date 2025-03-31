@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+const store = new Map<string, { status: 'pending' | 'done'; svg?: string }>();
+
+const generateUniqueId = () =>
+  Math.random().toString(36).substring(2) + Date.now().toString(36);
+
 export async function POST(req: NextRequest) {
   const { title, bullets, theme } = await req.json();
   const background = theme === 'dark' ? 'black' : 'white';
@@ -15,28 +20,46 @@ Slide title: "${title}"
 Bullet points:
 - ${bullets.join('\n- ')}`;
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: 'You respond only with valid SVG markup.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.8,
-      }),
-    });
+  const id = generateUniqueId();
+  store.set(id, { status: 'pending' });
 
-    const data = await response.json();
-    const svg = data.choices?.[0]?.message?.content?.replace(/```svg\n?|```/g, '').trim() || '';
-    return NextResponse.json({ svg });
-  } catch (err) {
-    console.error('[generateSVG] error:', err);
-    return NextResponse.json({ svg: '' }, { status: 500 });
+  setTimeout(async () => {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: 'Respond with valid SVG only.' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      const data = await response.json();
+      const svg = data.choices?.[0]?.message?.content
+        ?.replace(/```svg\n?|```/g, '')
+        .trim();
+
+      store.set(id, { status: 'done', svg });
+    } catch (err) {
+      store.set(id, { status: 'done', svg: '' });
+      console.error('[generateSVG async] error:', err);
+    }
+  }, 50);
+
+  return NextResponse.json({ id });
+}
+
+export async function GET(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get('id');
+  if (!id || !store.has(id)) {
+    return NextResponse.json({ status: 'not_found' }, { status: 404 });
   }
+  return NextResponse.json(store.get(id));
 }
