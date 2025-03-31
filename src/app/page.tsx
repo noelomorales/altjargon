@@ -1,8 +1,3 @@
-/* Final working page.tsx
-   - Includes glitch mode, navigation, prompt form
-   - Handles generation with defensive guards
-*/
-
 'use client';
 
 import { useState } from 'react';
@@ -14,7 +9,7 @@ interface Slide {
   notes: string;
   svgPrompt?: string;
   caption?: string;
-  author?: string;
+  type: 'title' | 'agenda' | 'normal';
 }
 
 type Theme = 'clean' | 'dark';
@@ -26,42 +21,57 @@ export default function PresentationBuilder() {
   const [generating, setGenerating] = useState(false);
   const [theme, setTheme] = useState<Theme>('clean');
   const [visibleBullets, setVisibleBullets] = useState<number[]>([]);
-  const [notesExpanded, setNotesExpanded] = useState<boolean>(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   const decode = (str: string) =>
     str.replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-
-  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+       .replace(/&lt;/g, '<')
+       .replace(/&gt;/g, '>')
+       .replace(/&quot;/g, '"')
+       .replace(/&#39;/g, "'");
 
   const glitch = theme === 'dark' ? 'animate-[glitch_1s_infinite] tracking-wide' : '';
   const glitchStyle = theme === 'dark' ? 'text-lime-300 drop-shadow-[0_0_2px_lime]' : '';
-
-  const slide = Array.isArray(slides) && typeof current === 'number' && slides[current]
-    ? slides[current]
-    : {
-        title: '',
-        bullets: [],
-        svg: '',
-        notes: '',
-        svgPrompt: '',
-        caption: '',
-      };
+  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
   const textarea = theme === 'dark' ? 'bg-[#111] border-lime-500 text-lime-300' : 'bg-white border-gray-300 text-black';
 
+  const slide = slides[current] ?? {
+    title: '',
+    bullets: [],
+    svg: '',
+    notes: '',
+    caption: '',
+    type: 'normal',
+  };
+
+  const revealBullets = (index: number, total: number) => {
+    setVisibleBullets((prev) => {
+      const updated = [...prev];
+      updated[index] = 0;
+      return updated;
+    });
+    let count = 0;
+    const interval = setInterval(() => {
+      count++;
+      setVisibleBullets((prev) => {
+        const updated = [...prev];
+        updated[index] = count;
+        return updated;
+      });
+      if (count >= total) clearInterval(interval);
+    }, 300);
+  };
+
   const handleSubmit = async () => {
     if (!prompt.trim()) return;
     setGenerating(true);
     setSlides([]);
-    setVisibleBullets([]);
     setCurrent(0);
+    setVisibleBullets([]);
 
     try {
       const outlineRes = await fetch('/api/generateOutline', {
@@ -70,48 +80,49 @@ export default function PresentationBuilder() {
         body: JSON.stringify({ prompt }),
       });
       const outlineData = await outlineRes.json();
-      const outline = outlineData.slides || [];
-      const agendaBullets = outline.slice(0, 6);
+      const outline: string[] = outlineData.slides || [];
 
-      const generated: Slide[] = [
-        { title: prompt, bullets: [`By J. Foresight`, today], svg: '', notes: '' },
-        { title: 'Agenda', bullets: agendaBullets, svg: '', notes: '' },
+      const allSlides: Slide[] = [];
+
+      const initialSlides = [
+        { title: prompt, type: 'title' },
+        { title: 'Agenda', type: 'agenda' },
+        ...outline.map((t) => ({ title: t, type: 'normal' })),
       ];
 
-      for (const title of outline) {
-        const bulletsRes = await fetch('/api/generateSlideContent', {
+      for (const s of initialSlides) {
+        const content = await fetch('/api/generateSlideContent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title }),
+          body: JSON.stringify({ title: s.title }),
         });
-        const text = await bulletsRes.text();
-        const isJSON = bulletsRes.headers.get('content-type')?.includes('application/json');
-        const data = isJSON ? JSON.parse(text) : { bullets: [] };
-        const bullets = data.bullets?.map(decode) || [];
+        const contentData = await content.json();
+        const bullets = (contentData.bullets || []).map(decode);
+        revealBullets(allSlides.length, bullets.length);
 
-        const svgRes = await fetch('/api/generateSVG', {
+        const svgPayload = await fetch('/api/generateSVG', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, bullets, theme }),
+          body: JSON.stringify({ title: s.title, bullets, theme }),
         });
-        const svgData = await svgRes.json();
+        const { id, prompt: svgPrompt } = await svgPayload.json();
         let svg = '';
-        if (svgData?.id) {
+        if (id) {
           for (let i = 0; i < 10; i++) {
-            await new Promise((r) => setTimeout(r, 1000));
-            const poll = await fetch(`/api/generateSVG?id=${svgData.id}`);
+            const poll = await fetch(`/api/generateSVG?id=${id}`);
             const result = await poll.json();
-            if (result?.status === 'done') {
+            if (result.status === 'done') {
               svg = result.svg;
               break;
             }
+            await new Promise((res) => setTimeout(res, 1000));
           }
         }
 
         const captionRes = await fetch('/api/generateSlideContent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: `caption for: ${title} \n ${bullets.join('\n')}` }),
+          body: JSON.stringify({ title: `caption for: ${s.title} \n ${bullets.join('\n')}` }),
         });
         const captionData = await captionRes.json();
         const caption = captionData?.bullets?.[0] || '';
@@ -119,16 +130,24 @@ export default function PresentationBuilder() {
         const noteRes = await fetch('/api/generateSlideContent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: `${title} notes \n ${bullets.join('\n')}` }),
+          body: JSON.stringify({ title: `${s.title} notes \n ${bullets.join('\n')}` }),
         });
         const notesData = await noteRes.json();
         const notes = notesData?.bullets?.join(' ') || '';
 
-        generated.push({ title, bullets, svg, notes, caption });
-        setSlides([...generated]);
+        allSlides.push({
+          title: s.title,
+          type: s.type as Slide['type'],
+          bullets,
+          svg,
+          caption,
+          notes,
+        });
+
+        setSlides([...allSlides]);
       }
     } catch (err) {
-      console.error('Error generating deck', err);
+      console.error('[generateDeck error]', err);
     }
 
     setGenerating(false);
@@ -175,57 +194,64 @@ export default function PresentationBuilder() {
         </form>
       )}
 
-      {Array.isArray(slides) && slides.length > 0 && (
-        <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
-          <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
-          <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
-          <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
-        </div>
-      )}
+      {slides.length > 0 && (
+        <>
+          <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
+            <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
+            <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
+            <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
+          </div>
 
-      {Array.isArray(slides) && slides.length > 0 && slide && (
-        <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 flex flex-col ${card}`}>
-          <div className="flex-1 flex gap-8">
-            <div className="flex-1 flex flex-col">
-              <h2 className={`text-4xl font-bold mb-6 border-b pb-3 border-current leading-tight tracking-tight ${glitch}`}>{slide.title}</h2>
-              <ul className={`list-disc pl-6 space-y-3 text-xl ${glitchStyle}`}>
-                {slide.bullets?.map((pt, i) => <li key={i}>{pt}</li>)}
-              </ul>
-            </div>
-            <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-              {current > 0 && slide.svg && <div dangerouslySetInnerHTML={{ __html: slide.svg }} />}
-              {current > 0 && slide.caption && (
-                <div className="text-xs text-gray-400 mt-2 italic whitespace-pre-wrap text-center">
-                  {slide.caption}
+          <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 flex flex-col ${card}`}>
+            <div className="flex-1 flex gap-8">
+              <div className="flex-1 flex flex-col">
+                <div className="flex items-baseline gap-2">
+                  <h2 className={`text-4xl font-bold mb-2 ${glitch}`}>{slide.title}</h2>
+                  <span className="text-xs uppercase tracking-wide opacity-60">
+                    {slide.type === 'title' && 'Title Slide'}
+                    {slide.type === 'agenda' && 'Agenda Slide'}
+                    {slide.type === 'normal' && 'Content Slide'}
+                  </span>
                 </div>
+                <ul className={`list-disc pl-6 space-y-3 text-xl ${glitchStyle}`}>
+                  {slide.bullets?.slice(0, visibleBullets[current] || slide.bullets.length).map((pt, i) => (
+                    <li key={i}>{pt}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
+                {current > 0 && slide.svg && <div dangerouslySetInnerHTML={{ __html: slide.svg }} />}
+                {current > 0 && slide.caption && (
+                  <div className="text-xs text-gray-400 mt-2 italic whitespace-pre-wrap text-center">
+                    {slide.caption}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="mt-6 text-sm border-t pt-2 border-current opacity-80 w-full">
+              <button onClick={() => setNotesExpanded(!notesExpanded)} className="underline text-xs mb-1">
+                {notesExpanded ? 'Hide Speaker Notes' : 'Show Speaker Notes'}
+              </button>
+              {notesExpanded && (
+                <textarea
+                  value={slide.notes || ''}
+                  onChange={(e) => {
+                    const updated = [...slides];
+                    updated[current].notes = e.target.value;
+                    setSlides(updated);
+                  }}
+                  className="w-full bg-transparent font-mono border border-current rounded p-2 mt-1 text-sm resize-none h-32"
+                />
               )}
             </div>
           </div>
-          <div className="mt-6 text-sm border-t pt-2 border-current opacity-80 w-full">
-            <button onClick={() => setNotesExpanded(!notesExpanded)} className="underline text-xs mb-1">
-              {notesExpanded ? 'Hide Speaker Notes' : 'Show Speaker Notes'}
-            </button>
-            {notesExpanded && (
-              <textarea
-                value={slide.notes || ''}
-                onChange={(e) => {
-                  const updated = [...slides];
-                  updated[current].notes = e.target.value;
-                  setSlides(updated);
-                }}
-                className="w-full bg-transparent font-mono border border-current rounded p-2 mt-1 text-sm resize-none h-32"
-              />
-            )}
-          </div>
-        </div>
-      )}
 
-      {Array.isArray(slides) && slides.length > 0 && (
-        <div className="flex justify-between items-center mt-6 w-full max-w-[90rem]">
-          <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
-          <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
-          <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
-        </div>
+          <div className="flex justify-between items-center mt-6 w-full max-w-[90rem]">
+            <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
+            <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
+            <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
+          </div>
+        </>
       )}
     </main>
   );
