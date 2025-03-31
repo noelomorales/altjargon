@@ -56,7 +56,7 @@ Bullet points:
     }
   }, 50);
 
-  return NextResponse.json({ id });
+  return NextResponse.json({ id, prompt }); // ✅ now returns prompt
 }
 
 export async function GET(req: NextRequest) {
