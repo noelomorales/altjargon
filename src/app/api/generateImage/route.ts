@@ -1,3 +1,5 @@
+// File: src/app/api/generateImage/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -5,8 +7,9 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
-    if (!prompt) {
-      return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
+
+    if (!prompt || typeof prompt !== 'string') {
+      return NextResponse.json({ error: 'Missing or invalid prompt' }, { status: 400 });
     }
 
     const imageRes = await fetch('https://api.openai.com/v1/images/generations', {
@@ -29,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ image: url });
   } catch (err) {
-    console.error('[image generation] error:', err);
+    console.error('[generateImage] Unexpected error:', err);
     return NextResponse.json({ error: 'Image generation failed' }, { status: 500 });
   }
 }
