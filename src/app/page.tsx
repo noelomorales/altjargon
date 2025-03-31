@@ -18,7 +18,14 @@ export default function Home() {
       body: JSON.stringify({ prompt }),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      console.error('[generateImage] JSON parse error:', text);
+      throw new Error('Invalid JSON returned from server');
+    }
 
     if (!res.ok || !data.image) {
       console.warn('[generateImage] fallback image used');
