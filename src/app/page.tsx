@@ -1,7 +1,6 @@
-/* Final regeneration of page.tsx
-   - Includes glitch effect, caption, speaker notes
-   - Defensive guards against missing slides
-   - UI navigation above and below
+/* Final working page.tsx
+   - Includes glitch mode, navigation, prompt form
+   - Handles generation with defensive guards
 */
 
 'use client';
@@ -55,6 +54,85 @@ export default function PresentationBuilder() {
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
+  const textarea = theme === 'dark' ? 'bg-[#111] border-lime-500 text-lime-300' : 'bg-white border-gray-300 text-black';
+
+  const handleSubmit = async () => {
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setSlides([]);
+    setVisibleBullets([]);
+    setCurrent(0);
+
+    try {
+      const outlineRes = await fetch('/api/generateOutline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const outlineData = await outlineRes.json();
+      const outline = outlineData.slides || [];
+      const agendaBullets = outline.slice(0, 6);
+
+      const generated: Slide[] = [
+        { title: prompt, bullets: [`By J. Foresight`, today], svg: '', notes: '' },
+        { title: 'Agenda', bullets: agendaBullets, svg: '', notes: '' },
+      ];
+
+      for (const title of outline) {
+        const bulletsRes = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title }),
+        });
+        const text = await bulletsRes.text();
+        const isJSON = bulletsRes.headers.get('content-type')?.includes('application/json');
+        const data = isJSON ? JSON.parse(text) : { bullets: [] };
+        const bullets = data.bullets?.map(decode) || [];
+
+        const svgRes = await fetch('/api/generateSVG', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, bullets, theme }),
+        });
+        const svgData = await svgRes.json();
+        let svg = '';
+        if (svgData?.id) {
+          for (let i = 0; i < 10; i++) {
+            await new Promise((r) => setTimeout(r, 1000));
+            const poll = await fetch(`/api/generateSVG?id=${svgData.id}`);
+            const result = await poll.json();
+            if (result?.status === 'done') {
+              svg = result.svg;
+              break;
+            }
+          }
+        }
+
+        const captionRes = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `caption for: ${title} \n ${bullets.join('\n')}` }),
+        });
+        const captionData = await captionRes.json();
+        const caption = captionData?.bullets?.[0] || '';
+
+        const noteRes = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `${title} notes \n ${bullets.join('\n')}` }),
+        });
+        const notesData = await noteRes.json();
+        const notes = notesData?.bullets?.join(' ') || '';
+
+        generated.push({ title, bullets, svg, notes, caption });
+        setSlides([...generated]);
+      }
+    } catch (err) {
+      console.error('Error generating deck', err);
+    }
+
+    setGenerating(false);
+  };
 
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg} font-sans`}>
@@ -75,8 +153,30 @@ export default function PresentationBuilder() {
         </button>
       </div>
 
-      {Array.isArray(slides) && slides.length > 0 && typeof current === 'number' && (
-        <div className="flex justify-between items-center mb-4 w-full max-w-[90rem]">
+      {slides.length === 0 && (
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="w-full max-w-xl space-y-4">
+          <h1 className="text-3xl font-bold leading-snug tracking-tight">Generate a Slide Deck</h1>
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+            placeholder="e.g. AI startup pitch for logistics"
+            className={`w-full p-4 rounded-md border focus:outline-none text-lg ${textarea}`}
+            rows={4}
+          />
+          <button type="submit" disabled={generating} className={`px-6 py-2 rounded text-lg ${button}`}>
+            {generating ? 'Generating…' : 'Generate Deck'}
+          </button>
+        </form>
+      )}
+
+      {Array.isArray(slides) && slides.length > 0 && (
+        <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
           <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
           <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
