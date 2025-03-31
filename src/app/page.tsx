@@ -13,6 +13,7 @@ export default function PresentationBuilder() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [current, setCurrent] = useState(0);
   const [generating, setGenerating] = useState(false);
+  const [darkMode, setDarkMode] = useState(true); // default ON
 
   const generateOutline = async (prompt: string): Promise<string[]> => {
     const res = await fetch('/api/generateOutline', {
@@ -56,7 +57,7 @@ export default function PresentationBuilder() {
       const data = await res.json();
       return data.svg || '';
     } catch (err) {
-      console.error('[generateSvg] failed:', err);
+      console.error('[generateSVG] failed:', err);
       return '';
     }
   };
@@ -98,33 +99,59 @@ export default function PresentationBuilder() {
     }
   };
 
+  const bg = darkMode ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
+  const card = darkMode
+    ? 'bg-[#111] border border-lime-500 text-lime-200 shadow-[0_0_12px_#0f0]'
+    : 'bg-white border border-gray-200 text-black shadow-xl';
+
+  const button = darkMode
+    ? 'bg-lime-500 text-black hover:bg-lime-300'
+    : 'bg-black text-white hover:bg-gray-800';
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f2f2f7] p-8">
+    <main className={`min-h-screen flex items-center justify-center p-8 transition-all ${bg}`}>
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => setDarkMode(!darkMode)}
+          className={`text-sm px-3 py-1 rounded ${button}`}
+        >
+          {darkMode ? '☀ Light Mode' : '🕳️ Dark Mode'}
+        </button>
+      </div>
+
       {slides.length === 0 ? (
         <form onSubmit={handleSubmit} className="w-full max-w-xl space-y-4">
-          <h1 className="text-2xl font-semibold text-gray-800">Generate a Slide Deck</h1>
+          <h1 className={`text-2xl font-semibold ${darkMode ? 'text-lime-400' : 'text-gray-800'}`}>
+            Generate a Slide Deck
+          </h1>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. AI startup pitch for logistics"
-            className="w-full p-4 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className={`w-full p-4 rounded-md border ${
+              darkMode
+                ? 'bg-[#111] border-lime-500 text-lime-300'
+                : 'bg-white border-gray-300 text-black'
+            } focus:outline-none focus:ring-2 focus:ring-blue-400`}
             rows={4}
           />
           <button
             type="submit"
             disabled={generating}
-            className="px-6 py-2 bg-black text-white rounded hover:bg-gray-800 disabled:opacity-50"
+            className={`px-6 py-2 rounded disabled:opacity-50 ${button}`}
           >
             {generating ? 'Generating…' : 'Generate Deck'}
           </button>
         </form>
       ) : (
-        <div className="w-full max-w-5xl h-[75vh] bg-white rounded-2xl shadow-xl p-10 flex flex-col">
+        <div className={`w-full max-w-5xl h-[75vh] rounded-2xl p-10 flex flex-col ${card}`}>
           <div className="flex-1 flex">
             {/* Slide content */}
             <div className="flex-1 flex flex-col pr-8">
-              <h2 className="text-3xl font-bold mb-4 border-b pb-2">{slide?.title}</h2>
+              <h2 className="text-3xl font-bold mb-4 border-b pb-2 border-current">
+                {slide?.title}
+              </h2>
               <ul className="list-disc pl-6 space-y-2 text-lg">
                 {slide?.bullets.map((point, i) => (
                   <li key={i}>{point}</li>
@@ -132,9 +159,9 @@ export default function PresentationBuilder() {
               </ul>
             </div>
 
-            {/* SVG pane */}
+            {/* SVG panel */}
             <div
-              className="w-[40%] h-full overflow-hidden rounded-xl border border-gray-200 bg-black text-white flex items-center justify-center p-2"
+              className="w-[40%] h-full overflow-hidden rounded-xl border border-current bg-black text-white flex items-center justify-center p-2"
               dangerouslySetInnerHTML={{ __html: slide?.svg || '' }}
             />
           </div>
@@ -148,7 +175,7 @@ export default function PresentationBuilder() {
             >
               ◀ Previous
             </button>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm opacity-60">
               Slide {current + 1} of {slides.length}
             </div>
             <button
