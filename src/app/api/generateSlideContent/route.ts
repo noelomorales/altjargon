@@ -42,13 +42,15 @@ Return only JSON: { "bullets": [string] }. Your tone is prophetic, poetic, uncan
     if (!content) throw new Error('No response content');
 
     try {
-      const parsed = JSON.parse(content);
-      const bullets = parsed.bullets.map((line: string) => decode(line));
-      return NextResponse.json({ bullets, imagePrompt: title });
-    } catch (err) {
-      console.error('[Parse Error]', content);
-      return NextResponse.json({ bullets: [], imagePrompt: title });
-    }
+  const match = content.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON object found');
+  const parsed = JSON.parse(match[0]);
+  const bullets = (parsed.bullets || []).map((line: string) => decode(line));
+  return NextResponse.json({ bullets, imagePrompt: title });
+} catch (err) {
+  console.error('[Parse Error]', content);
+  return NextResponse.json({ bullets: [], imagePrompt: title });
+}
   } catch (err) {
     console.error('[generateSlideContent] error:', err);
     return NextResponse.json({ bullets: [], imagePrompt: title }, { status: 500 });
