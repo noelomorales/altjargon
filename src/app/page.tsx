@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface Slide {
   title: string;
@@ -29,17 +29,26 @@ export default function PresentationBuilder() {
   };
 
   const generateSlideContent = async (title: string): Promise<Omit<Slide, 'image'>> => {
-    const res = await fetch('/api/generateSlideContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title }),
-    });
-    const data = await res.json();
-    return {
-      title,
-      bullets: data.bullets || [],
-      imagePrompt: data.imagePrompt || '',
-    };
+    try {
+      const res = await fetch('/api/generateSlideContent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+
+      const text = await res.text();
+      const isJSON = res.headers.get('content-type')?.includes('application/json');
+      const data = isJSON ? JSON.parse(text) : { bullets: [], imagePrompt: '' };
+
+      return {
+        title,
+        bullets: data.bullets || [],
+        imagePrompt: data.imagePrompt || '',
+      };
+    } catch (err) {
+      console.error('[generateSlideContent] error:', err);
+      return { title, bullets: [], imagePrompt: '' };
+    }
   };
 
   const generateImage = async (prompt: string): Promise<string> => {
@@ -71,19 +80,21 @@ export default function PresentationBuilder() {
 
       for (const title of outline) {
         const content = await generateSlideContent(title);
-        slideData.push({ ...content, image: '' });
-        setSlides([...slideData]); // update UI per slide
-      }
+        const slide: Slide = { ...content, image: '' };
+        slideData.push(slide);
+        setSlides([...slideData]);
 
-      // start background image generation
-      slideData.forEach(async (slide, i) => {
-        const image = await generateImage(slide.imagePrompt);
-        setSlides((prev) => {
-          const updated = [...prev];
-          updated[i] = { ...updated[i], image };
-          return updated;
+        // Start image generation in background
+        generateImage(slide.imagePrompt).then((url) => {
+          setSlides((prev) => {
+            const updated = [...prev];
+            updated[slideData.length - 1] = { ...slide, image: url };
+            return updated;
+          });
         });
-      });
+
+        await new Promise((res) => setTimeout(res, 500)); // throttle requests
+      }
     } catch (err) {
       alert('Failed to generate deck');
       console.error(err);
