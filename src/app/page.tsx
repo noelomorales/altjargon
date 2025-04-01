@@ -30,7 +30,7 @@ export default function PresentationBuilder() {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
 
-  const stripNumber = (title: string) => title.replace(/^\d+\.\s*/, '');
+  const cleanTitle = (title: string) => title.replace(/^Slide \d+:\s*/, '');
 
   const glitch = theme === 'dark' ? 'animate-[glitch_1s_infinite] tracking-wide' : '';
   const glitchStyle = theme === 'dark' ? 'text-lime-300 drop-shadow-[0_0_2px_lime]' : '';
@@ -97,23 +97,27 @@ export default function PresentationBuilder() {
         const contentData = await content.json();
         const bullets = (contentData.bullets || []).map(decode);
 
-        const svgPayload = await fetch('/api/generateSVG', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: s.title, bullets, theme }),
-        });
-        const { id } = await svgPayload.json();
         let svg = '';
-        if (id) {
-          for (let i = 0; i < 10; i++) {
-            const poll = await fetch(`/api/generateSVG?id=${id}`);
-            const result = await poll.json();
-            if (result.status === 'done') {
-              svg = result.svg;
-              break;
+        try {
+          const svgPayload = await fetch('/api/generateSVG', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: s.title, bullets, theme }),
+          });
+          const { id } = await svgPayload.json();
+          if (id) {
+            for (let i = 0; i < 10; i++) {
+              const poll = await fetch(`/api/generateSVG?id=${id}`);
+              const result = await poll.json();
+              if (result.status === 'done') {
+                svg = result.svg;
+                break;
+              }
+              await new Promise((res) => setTimeout(res, 1000));
             }
-            await new Promise((res) => setTimeout(res, 1000));
           }
+        } catch {
+          svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="black" /><text x="50%" y="50%" fill="white" font-size="20" text-anchor="middle">[Image failed]</text></svg>';
         }
 
         const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
@@ -150,6 +154,8 @@ export default function PresentationBuilder() {
     setGenerating(false);
   };
 
+  const firstSlideReady = slides.length > 0 && slides[0].svg && slides[0].caption && slides[0].notes;
+
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg} font-sans`}>
       <style>{`
@@ -174,7 +180,7 @@ export default function PresentationBuilder() {
         </button>
       </div>
 
-      {slides.length > 0 && (
+      {firstSlideReady && (
         <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
           <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className={`text-base px-4 py-1 rounded ${navButton} disabled:opacity-50`}>⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
@@ -186,7 +192,7 @@ export default function PresentationBuilder() {
         <div className={`w-full max-w-[90rem] aspect-[16/9] rounded-2xl p-10 flex flex-col ${card}`}>
           <div className="flex-1 flex gap-8">
             <div className="flex-1 flex flex-col">
-              <h2 className={`text-4xl font-bold mb-6 border-b pb-3 border-current leading-tight tracking-tight ${glitch}`}>{stripNumber(slide.title)}</h2>
+              <h2 className={`text-4xl font-bold mb-6 border-b pb-3 border-current leading-tight tracking-tight ${glitch}`}>{cleanTitle(slide.title)}</h2>
               <ul className={`list-disc pl-6 space-y-3 text-xl ${glitchStyle}`}>
                 {slide.bullets?.map((pt, i) => <li key={i}>{pt}</li>)}
               </ul>
