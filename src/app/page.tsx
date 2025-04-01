@@ -38,6 +38,7 @@ export default function PresentationBuilder() {
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
   const button = theme === 'dark' ? 'bg-[#39ff14] text-black hover:bg-[#53ff5c]' : 'bg-black text-white hover:bg-gray-800';
+  const navButton = theme === 'dark' ? 'bg-lime-500 text-black hover:bg-lime-400' : 'bg-gray-200 text-black hover:bg-gray-300';
   const textarea = theme === 'dark' ? 'bg-[#111] border-lime-500 text-lime-300' : 'bg-white border-gray-300 text-black';
 
   const slide = slides[current] ?? {
@@ -143,6 +144,11 @@ export default function PresentationBuilder() {
           80% { text-shadow: 2px -2px magenta, -2px 2px lime; }
           100% { text-shadow: 0 0 0 lime; }
         }
+        svg {
+          max-width: 100%;
+          max-height: 100%;
+          display: block;
+        }
       `}</style>
 
       <div className="absolute top-4 right-4 flex gap-2">
@@ -153,9 +159,9 @@ export default function PresentationBuilder() {
 
       {slides.length > 0 && (
         <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
-          <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
+          <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className={`text-base px-4 py-1 rounded ${navButton} disabled:opacity-50`}>⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
-          <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
+          <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className={`text-base px-4 py-1 rounded ${navButton} disabled:opacity-50`}>Next ➡️</button>
         </div>
       )}
 
@@ -169,7 +175,13 @@ export default function PresentationBuilder() {
               </ul>
             </div>
             <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-              {slide.svg && <div dangerouslySetInnerHTML={{ __html: slide.svg }} />}
+              {slide.svg && (
+                <div
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: theme === 'dark' ? 'black' : 'white' }}
+                  dangerouslySetInnerHTML={{ __html: slide.svg }}
+                />
+              )}
               {slide.caption && (
                 <div className="text-xs text-gray-400 mt-2 italic whitespace-pre-wrap text-center">
                   {slide.caption}
