@@ -1,3 +1,5 @@
+// src/app/page.tsx
+
 'use client';
 
 import { useState } from 'react';
@@ -32,7 +34,6 @@ export default function PresentationBuilder() {
 
   const glitch = theme === 'dark' ? 'animate-[glitch_1s_infinite] tracking-wide' : '';
   const glitchStyle = theme === 'dark' ? 'text-lime-300 drop-shadow-[0_0_2px_lime]' : '';
-  const today = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   const bg = theme === 'dark' ? 'bg-black text-lime-300' : 'bg-[#f2f2f7] text-gray-800';
   const card = theme === 'dark' ? 'bg-[#111] border border-lime-500 shadow-[0_0_20px_#0f0]' : 'bg-white border border-gray-200';
@@ -73,13 +74,13 @@ export default function PresentationBuilder() {
       const outlineData = await outlineRes.json();
       const outline: string[] = outlineData.slides || [];
 
-      const allSlides: Slide[] = [];
-
       const initialSlides = [
         { title: prompt, type: 'title' },
         { title: 'Agenda', type: 'agenda' },
         ...outline.map((t) => ({ title: t, type: 'normal' })),
       ];
+
+      const allSlides: Slide[] = [];
 
       for (const s of initialSlides) {
         const content = await fetch('/api/generateSlideContent', {
@@ -112,15 +113,16 @@ export default function PresentationBuilder() {
         const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
         const notes = (await retrySlideContent(s.title, bullets, 'notes')).join(' ');
 
-        allSlides.push({
+        const newSlide: Slide = {
           title: s.title,
           type: s.type as Slide['type'],
           bullets,
           svg,
           caption,
           notes,
-        });
+        };
 
+        allSlides.push(newSlide);
         setSlides([...allSlides]);
       }
     } catch (err) {
@@ -191,14 +193,6 @@ export default function PresentationBuilder() {
               />
             )}
           </div>
-        </div>
-      )}
-
-      {slides.length > 0 && (
-        <div className="flex justify-between items-center mt-6 w-full max-w-[90rem]">
-          <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">⬅️ Previous</button>
-          <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
-          <button disabled={current === slides.length - 1} onClick={() => setCurrent(i => i + 1)} className="text-base px-4 py-1 bg-gray-200 rounded disabled:opacity-50">Next ➡️</button>
         </div>
       )}
 
