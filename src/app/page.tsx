@@ -133,6 +133,16 @@ export default function PresentationBuilder() {
       }
     } catch (err) {
       console.error('[generateDeck error]', err);
+      setSlides([
+        {
+          title: 'Error',
+          type: 'title',
+          bullets: ['Unable to generate deck. Please try again.'],
+          svg: '',
+          caption: '',
+          notes: '',
+        },
+      ]);
     }
 
     setGenerating(false);
