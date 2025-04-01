@@ -137,12 +137,14 @@ export default function PresentationBuilder() {
         {
           title: 'Error',
           type: 'title',
-          bullets: ['Unable to generate deck. Please try again.'],
+          bullets: ['Failed to generate deck. Please try again or check server logs.'],
           svg: '',
           caption: '',
           notes: '',
         },
       ]);
+      setGenerating(false);
+      return;
     }
 
     setGenerating(false);
