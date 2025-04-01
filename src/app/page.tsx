@@ -1,4 +1,4 @@
-// src/app/page.tsx
+// src/app/page.tsx — Reverted to last stable version with SVG fallback + title cleaning
 
 'use client';
 
@@ -45,21 +45,6 @@ export default function PresentationBuilder() {
     title: '', bullets: [], svg: '', notes: '', caption: '', type: 'normal',
   };
 
-  const retrySlideContent = async (title: string, bullets: string[], suffix: string): Promise<string[]> => {
-    for (let i = 0; i < 3; i++) {
-      try {
-        const res = await fetch('/api/generateSlideContent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: `${title} ${suffix} \n ${bullets.join('\n')}` }),
-        });
-        const data = await res.json();
-        if (data?.bullets?.length) return data.bullets.map(decode);
-      } catch {}
-    }
-    return ['(Failed to generate content)'];
-  };
-
   const handleSubmit = async () => {
     if (!prompt.trim()) return;
     setGenerating(true);
@@ -72,21 +57,16 @@ export default function PresentationBuilder() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
       });
-
-      if (!outlineRes.ok) {
-        throw new Error(`[generateOutline] ${outlineRes.status} ${outlineRes.statusText}`);
-      }
-
       const outlineData = await outlineRes.json();
       const outline: string[] = outlineData.slides || [];
+
+      const allSlides: Slide[] = [];
 
       const initialSlides = [
         { title: prompt, type: 'title' },
         { title: 'Agenda', type: 'agenda' },
         ...outline.map((t) => ({ title: t, type: 'normal' })),
       ];
-
-      const allSlides: Slide[] = [];
 
       for (const s of initialSlides) {
         const content = await fetch('/api/generateSlideContent', {
@@ -117,22 +97,34 @@ export default function PresentationBuilder() {
             }
           }
         } catch {
-          svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><rect width="100%" height="100%" fill="black" /><text x="50%" y="50%" fill="white" font-size="20" text-anchor="middle">[Image failed]</text></svg>';
+          svg = '';
         }
 
-        const caption = (await retrySlideContent(s.title, bullets, 'caption'))[0];
-        const notes = (await retrySlideContent(s.title, bullets, 'notes')).join(' ');
+        const captionRes = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `caption for: ${s.title} \n ${bullets.join('\n')}` }),
+        });
+        const captionData = await captionRes.json();
+        const caption = captionData?.bullets?.[0] || '';
 
-        const newSlide: Slide = {
+        const noteRes = await fetch('/api/generateSlideContent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: `${s.title} notes \n ${bullets.join('\n')}` }),
+        });
+        const notesData = await noteRes.json();
+        const notes = notesData?.bullets?.join(' ') || '';
+
+        allSlides.push({
           title: s.title,
           type: s.type as Slide['type'],
           bullets,
           svg,
           caption,
           notes,
-        };
+        });
 
-        allSlides.push(newSlide);
         setSlides([...allSlides]);
       }
     } catch (err) {
@@ -141,46 +133,26 @@ export default function PresentationBuilder() {
         {
           title: 'Error',
           type: 'title',
-          bullets: ['Failed to generate deck. Please try again or check server logs.'],
+          bullets: ['Something went wrong.'],
           svg: '',
           caption: '',
           notes: '',
         },
       ]);
-      setGenerating(false);
-      return;
     }
 
     setGenerating(false);
   };
 
-  const firstSlideReady = slides.length > 0 && slides[0].svg && slides[0].caption && slides[0].notes;
-
   return (
     <main className={`min-h-screen flex flex-col items-center justify-center p-8 ${bg} font-sans`}>
-      <style>{`
-        @keyframes glitch {
-          0% { text-shadow: 2px 0 lime, -2px 0 magenta; }
-          20% { text-shadow: -2px -1px cyan, 2px 1px lime; }
-          40% { text-shadow: 1px 2px magenta, -1px -2px cyan; }
-          60% { text-shadow: -1px 0 lime, 1px 0 cyan; }
-          80% { text-shadow: 2px -2px magenta, -2px 2px lime; }
-          100% { text-shadow: 0 0 0 lime; }
-        }
-        svg {
-          max-width: 100%;
-          max-height: 100%;
-          display: block;
-        }
-      `}</style>
-
       <div className="absolute top-4 right-4 flex gap-2">
         <button onClick={() => setTheme(theme === 'clean' ? 'dark' : 'clean')} className={`px-3 py-1 text-sm rounded ${button}`}>
           {theme === 'dark' ? '☀ Clean Mode' : '🧿 Glitch Mode'}
         </button>
       </div>
 
-      {firstSlideReady && (
+      {slides.length > 0 && (
         <div className="flex justify-between items-center my-4 w-full max-w-[90rem]">
           <button disabled={current === 0} onClick={() => setCurrent(i => i - 1)} className={`text-base px-4 py-1 rounded ${navButton} disabled:opacity-50`}>⬅️ Previous</button>
           <div className="text-base opacity-60">Slide {current + 1} of {slides.length}</div>
@@ -198,13 +170,7 @@ export default function PresentationBuilder() {
               </ul>
             </div>
             <div className={`w-[40%] h-full overflow-hidden rounded-xl border border-current flex flex-col items-center justify-center p-4 ${theme === 'dark' ? 'bg-black' : 'bg-white'}`}>
-              {slide.svg && (
-                <div
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ background: theme === 'dark' ? 'black' : 'white' }}
-                  dangerouslySetInnerHTML={{ __html: slide.svg }}
-                />
-              )}
+              {slide.svg && <div dangerouslySetInnerHTML={{ __html: slide.svg }} />}
               {slide.caption && (
                 <div className="text-xs text-gray-400 mt-2 italic whitespace-pre-wrap text-center">
                   {slide.caption}
