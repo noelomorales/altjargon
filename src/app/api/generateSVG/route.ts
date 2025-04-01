@@ -1,3 +1,5 @@
+// src/app/api/generateSVG/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -45,18 +47,29 @@ Bullet points:
       });
 
       const data = await response.json();
-      const svg = data.choices?.[0]?.message?.content
+      let svg = data.choices?.[0]?.message?.content
         ?.replace(/```svg\n?|```/g, '')
         .trim();
 
-      store.set(id, { status: 'done', svg });
+      let themedSvg = svg;
+      if (svg) {
+        if (svg.includes('style=')) {
+          themedSvg = svg.replace(/style="([^"]*)"/, (match, styles) => {
+            return `style="background:${background}; ${styles}"`;
+          });
+        } else {
+          themedSvg = svg.replace('<svg', `<svg style="background:${background}"`);
+        }
+      }
+
+      store.set(id, { status: 'done', svg: themedSvg });
     } catch (err) {
       console.error('[generateSVG async] error:', err);
       store.set(id, { status: 'done', svg: '' });
     }
   }, 50);
 
-  return NextResponse.json({ id, prompt }); // ✅ now returns prompt
+  return NextResponse.json({ id, prompt });
 }
 
 export async function GET(req: NextRequest) {
